@@ -172,6 +172,12 @@ in `howm-template'. See `format-time-string'")
 (defvar howm-template-file-format (concat howm-ref-header " %s")
   "%file is replaced with `homw-template-file-format'
 in `howm-template'. %s is replaced with name of last file. See `format'.")
+(defvar howm-template-file-transformer nil
+  "Function to transform the file name for context links.
+If non-nil, called with the abbreviated file name and the previous buffer.
+Should return the string to use in place of the file name in
+`howm-template-file-format'.
+If nil, the abbreviated file name is used directly.")
 
 ;;; --- level 3 ---
 
@@ -970,7 +976,11 @@ We need entire-match in order to
            (file (cond ((not use-file) "")
                        ((null f) "")
                        ((string= f (buffer-file-name)) "")
-                       (t (format howm-template-file-format af)))))
+                       (t (format howm-template-file-format
+                                 (if howm-template-file-transformer
+                                     (funcall howm-template-file-transformer
+                                              af previous-buffer)
+                                   af))))))
       (let ((arg `((title . ,title) (date . ,date) (file . ,file)))
             (end (point-marker)))
         (howm-replace howm-template-rules arg beg end)
