@@ -64,157 +64,91 @@ schedules outside the range in %reminder in the menu.")
 
 ;; Fix me: redundant (howm-date-* & howm-reminder-*)
 
-(if howm-reminder-old-format
-    (progn ;; old format
-      (defvar howm-reminder-regexp-grep-format
-        "@\\[[0-9][0-9][0-9][0-9]/[0-9][0-9]/[0-9][0-9]\\]%s")
-      (defvar howm-reminder-regexp-format
-        "\\(@\\)\\[\\([0-9][0-9][0-9][0-9]\\)/\\([0-9][0-9]\\)/\\([0-9][0-9]\\)\\]\\(%s\\)\\([0-9]*\\)")
-      (defun howm-reminder-regexp-grep (types)
-        (format howm-reminder-regexp-grep-format types))
-      (defun howm-reminder-regexp (types)
-        (format howm-reminder-regexp-format types))
-      (defvar howm-reminder-regexp-command-pos 1)
-      (defvar howm-reminder-regexp-year-pos 2)
-      (defvar howm-reminder-regexp-month-pos 3)
-      (defvar howm-reminder-regexp-day-pos 4)
-      (defvar howm-reminder-regexp-type-pos 5)
-      (defvar howm-reminder-regexp-laziness-pos 6)
-      (defvar howm-reminder-today-format "@[%Y/%m/%d]")
-      (howm-defvar-risky howm-reminder-font-lock-keywords
-        `(
-          (,(howm-reminder-regexp "[-]?") (0 howm-reminder-normal-face prepend))
-          (,(howm-reminder-regexp "[+]") (0 howm-reminder-todo-face prepend))
-          (,(howm-reminder-regexp "[~]") (0 howm-reminder-defer-face prepend))
-          (,(howm-reminder-regexp "[!]")
-           (0 howm-reminder-deadline-face prepend)
-           (,howm-reminder-regexp-type-pos (howm-reminder-deadline-type-face) prepend))
-          (,(howm-reminder-regexp "[@]") (0 howm-reminder-schedule-face prepend))
-          (,(howm-reminder-regexp "[.]") (0 howm-reminder-done-face prepend))
-          ))
-      (defun howm-reminder-font-lock-keywords ()
-        howm-reminder-font-lock-keywords)
-      (defun howm-action-lock-done (&optional command)
-        (save-excursion
-          (let ((at-beg (match-beginning howm-reminder-regexp-command-pos))
-                (at-end (match-end  howm-reminder-regexp-command-pos))
-                (type-beg (match-beginning howm-reminder-regexp-type-pos))
-                (type-end (match-end howm-reminder-regexp-type-pos))
-                (lazy-beg (match-beginning howm-reminder-regexp-laziness-pos))
-                (lazy-end (match-end howm-reminder-regexp-laziness-pos)))
-            (let* ((s (or command
-                          (read-from-minibuffer
-                           "RET (done), x (cancel), symbol (type), num (laziness): ")))
-                   (c (cond ((string= s "") ".")
-                            ((= 0 (string-to-number s)) ". give up")
-                            (t nil))))
-              (when (string= s "")
-                (howm-congrats))
-              (if c
-                  (progn
-                    (goto-char at-beg)
-                    (delete-region at-beg at-end)
-                    (insert (howm-reminder-today))
-                    (insert (format "%s " c)))
-                (progn
-                  (goto-char lazy-beg)
-                  (delete-region lazy-beg lazy-end)
-                  (when (string= (buffer-substring-no-properties type-beg type-end)
-                                 " ")
-                    (goto-char type-beg)
-                    (insert "-")) ;; "no type" = "normal"
-                  (insert s)))))))
-      )
-  (progn ;; new format
-    (defvar howm-reminder-regexp-grep-format
-      (concat "\\[" howm-date-regexp-grep "[ :0-9]*\\]%s"))
-    (defvar howm-reminder-regexp-format
-      (concat "\\(\\[" howm-date-regexp "[ :0-9]*\\]\\)\\(\\(%s\\)\\([0-9]*\\)\\)"))
-;;     (defvar howm-reminder-regexp-grep-format
-;;       (concat "\\[" howm-date-regexp-grep "\\]%s"))
-;;     (defvar howm-reminder-regexp-format
-;;       (concat "\\[" howm-date-regexp "\\]\\(\\(%s\\)\\([0-9]*\\)\\)"))
-    (defun howm-reminder-regexp-grep (types)
-      (format howm-reminder-regexp-grep-format types))
-    (defun howm-reminder-regexp (types)
-      (format howm-reminder-regexp-format types))
-    (defvar howm-reminder-regexp-date-pos 1)
-    (defvar howm-reminder-regexp-year-pos  (+ howm-date-regexp-year-pos 1))
-    (defvar howm-reminder-regexp-month-pos (+ howm-date-regexp-month-pos 1))
-    (defvar howm-reminder-regexp-day-pos   (+ howm-date-regexp-day-pos 1))
-    (defvar howm-reminder-regexp-command-pos 5)
-    (defvar howm-reminder-regexp-type-pos 6)
-    (defvar howm-reminder-regexp-laziness-pos 7)
-    (defvar howm-reminder-today-format
-      (format howm-insert-date-format howm-date-format))
-    (howm-defvar-risky howm-reminder-font-lock-keywords
-      `(
-        (,(howm-reminder-regexp "[-]") (0 howm-reminder-normal-face prepend))
-        (,(howm-reminder-regexp "[+]") (0 howm-reminder-todo-face prepend))
-        (,(howm-reminder-regexp "[~]") (0 howm-reminder-defer-face prepend))
-        (,(howm-reminder-regexp "[!]")
-         (0 howm-reminder-deadline-face prepend)
-         (,howm-reminder-regexp-type-pos (howm-reminder-deadline-type-face) prepend))
-        (,(howm-reminder-regexp "[@]") (0 howm-reminder-schedule-face prepend))
-        (,(howm-reminder-regexp "[.]") (0 howm-reminder-done-face prepend))
-        ))
-    (defun howm-reminder-font-lock-keywords ()
-      howm-reminder-font-lock-keywords)
-    (defun howm-action-lock-done-prompt ()
-      (format "RET (done), x (%s), symbol (type), num (laziness): "
-              howm-reminder-cancel-string))
-    (defun howm-action-lock-done (&optional command)
-      ;; parse line
-      (let* ((pos (point))
-             (beg (match-beginning 0))
-             (end (match-end 0))
-             (date (match-string-no-properties howm-reminder-regexp-date-pos))
-             (type (match-string-no-properties howm-reminder-regexp-type-pos))
-             (lazy (match-string-no-properties howm-reminder-regexp-laziness-pos))
-             (desc (buffer-substring-no-properties end (line-end-position))))
-        ;; parse input command
-        (let* ((s (or command
-                      (howm-read-string (howm-action-lock-done-prompt)
-                                        "x-+~!.@"
-                                        "0123456789")))
-               (type-or-lazy (string-match (format "^\\(%s?\\)\\([0-9]*\\)$"
-                                                   howm-reminder-types)
-                                           s))
-               (new-type (and type-or-lazy (match-string-no-properties 1 s)))
-               (new-lazy (and type-or-lazy (match-string-no-properties 2 s))))
-          (when (string= new-type "")
-            (setq new-type type))
-          (when (string= new-lazy "")
-            (setq new-lazy lazy))
-          ;; dispatch and get new contents
-          (let ((new (cond ((string= s "")
-                            (howm-action-lock-done-done date type lazy desc))
-                           ((string= s "x")
-                            (howm-action-lock-done-cancel date type lazy
-                                                          desc))
-                           (type-or-lazy
-                            (howm-action-lock-done-modify date
-                                                          new-type new-lazy
-                                                          desc))
-                           (t
-                            (error "Can't understand %s" s)))))
-            ;; replace contents
-            (goto-char beg)
-            (delete-region (point) (line-end-position))
-            (insert new)
-            (goto-char pos)))))
-    (defun howm-action-lock-done-done (date type lazy desc &optional done-mark)
-      (when (null done-mark)
-        (setq done-mark ".")
-        (howm-congrats))
-      (concat (howm-reminder-today) done-mark " "
-              date ":" type lazy desc))
-    (defun howm-action-lock-done-cancel (date type lazy desc)
-      (howm-action-lock-done-done date type lazy desc
-                                  (format ". %s" howm-reminder-cancel-string)))
-    (defun howm-action-lock-done-modify (date type lazy desc)
-      (concat date type lazy desc))
+(defvar howm-reminder-regexp-grep-format
+  (concat "\\[" howm-date-regexp-grep "[ :0-9]*\\]%s"))
+(defvar howm-reminder-regexp-format
+  (concat "\\(\\[" howm-date-regexp "[ :0-9]*\\]\\)\\(\\(%s\\)\\([0-9]*\\)\\)"))
+
+(defun howm-reminder-regexp-grep (types)
+  (format howm-reminder-regexp-grep-format types))
+(defun howm-reminder-regexp (types)
+  (format howm-reminder-regexp-format types))
+(defvar howm-reminder-regexp-date-pos 1)
+(defvar howm-reminder-regexp-year-pos  (+ howm-date-regexp-year-pos 1))
+(defvar howm-reminder-regexp-month-pos (+ howm-date-regexp-month-pos 1))
+(defvar howm-reminder-regexp-day-pos   (+ howm-date-regexp-day-pos 1))
+(defvar howm-reminder-regexp-command-pos 5)
+(defvar howm-reminder-regexp-type-pos 6)
+(defvar howm-reminder-regexp-laziness-pos 7)
+(defvar howm-reminder-today-format
+  (format howm-insert-date-format howm-date-format))
+(howm-defvar-risky howm-reminder-font-lock-keywords
+  `(
+    (,(howm-reminder-regexp "[-]") (0 howm-reminder-normal-face prepend))
+    (,(howm-reminder-regexp "[+]") (0 howm-reminder-todo-face prepend))
+    (,(howm-reminder-regexp "[~]") (0 howm-reminder-defer-face prepend))
+    (,(howm-reminder-regexp "[!]")
+     (0 howm-reminder-deadline-face prepend)
+     (,howm-reminder-regexp-type-pos (howm-reminder-deadline-type-face) prepend))
+    (,(howm-reminder-regexp "[@]") (0 howm-reminder-schedule-face prepend))
+    (,(howm-reminder-regexp "[.]") (0 howm-reminder-done-face prepend))
     ))
+(defun howm-reminder-font-lock-keywords ()
+  howm-reminder-font-lock-keywords)
+(defun howm-action-lock-done-prompt ()
+  (format "RET (done), x (%s), symbol (type), num (laziness): "
+          howm-reminder-cancel-string))
+(defun howm-action-lock-done (&optional command)
+  ;; parse line
+  (let* ((pos (point))
+         (beg (match-beginning 0))
+         (end (match-end 0))
+         (date (match-string-no-properties howm-reminder-regexp-date-pos))
+         (type (match-string-no-properties howm-reminder-regexp-type-pos))
+         (lazy (match-string-no-properties howm-reminder-regexp-laziness-pos))
+         (desc (buffer-substring-no-properties end (line-end-position))))
+    ;; parse input command
+    (let* ((s (or command
+                  (howm-read-string (howm-action-lock-done-prompt)
+                                    "x-+~!.@"
+                                    "0123456789")))
+           (type-or-lazy (string-match (format "^\\(%s?\\)\\([0-9]*\\)$"
+                                                howm-reminder-types)
+                                        s))
+           (new-type (and type-or-lazy (match-string-no-properties 1 s)))
+           (new-lazy (and type-or-lazy (match-string-no-properties 2 s))))
+      (when (string= new-type "")
+        (setq new-type type))
+      (when (string= new-lazy "")
+        (setq new-lazy lazy))
+      ;; dispatch and get new contents
+      (let ((new (cond ((string= s "")
+                        (howm-action-lock-done-done date type lazy desc))
+                       ((string= s "x")
+                        (howm-action-lock-done-cancel date type lazy
+                                                      desc))
+                       (type-or-lazy
+                        (howm-action-lock-done-modify date
+                                                      new-type new-lazy
+                                                      desc))
+                       (t
+                        (error "Can't understand %s" s)))))
+        ;; replace contents
+        (goto-char beg)
+        (delete-region (point) (line-end-position))
+        (insert new)
+        (goto-char pos)))))
+(defun howm-action-lock-done-done (date type lazy desc &optional done-mark)
+  (when (null done-mark)
+    (setq done-mark ".")
+    (howm-congrats))
+  (concat (howm-reminder-today) done-mark " "
+          date ":" type lazy desc))
+(defun howm-action-lock-done-cancel (date type lazy desc)
+  (howm-action-lock-done-done date type lazy desc
+                              (format ". %s" howm-reminder-cancel-string)))
+(defun howm-action-lock-done-modify (date type lazy desc)
+  (concat date type lazy desc))
 
 (defun howm-reminder-deadline-type-face ()
   (let ((late (cadr (howm-todo-parse-string (match-string-no-properties 0)))))

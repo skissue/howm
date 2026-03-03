@@ -296,12 +296,10 @@ allowed.")
   "Schedule and todo list."
   :group 'howm)
 
-(defvar howm-reminder-old-format nil)
-
 (defvar howm-reminder-marks
   ;; Be careful to order of characters.
   ;; "-" must be first so that regexp "[-+~!@.]" makes sense.
-  (if howm-reminder-old-format "-+~!@. " "-+~!@."))
+  "-+~!@.")
 (defvar howm-reminder-types
   (format "[%s]" howm-reminder-marks))
 
@@ -336,7 +334,7 @@ allowed.")
   :group 'howm-reminder)
 
 (defcustom howm-todo-types
-  (if howm-reminder-old-format "[-+~! .]" "[-+~!.]")
+  "[-+~!.]"
   "*Regular expression of reminder types which are listed as todo."
   :get #'howm-custom-reminder-get-types
   :set #'howm-custom-reminder-set-types
@@ -412,7 +410,7 @@ If car is nil, it means the border between active and sleeping reminders."
     :group 'howm-reminder))
 
 (defcustom howm-reminder-menu-types
-  (if howm-reminder-old-format "[-+~!@ ]" "[-+~!@]")
+  "[-+~!@]"
   "*Regular expression of reminder types which are shown in menu."
   :get #'howm-custom-reminder-get-types
   :set #'howm-custom-reminder-set-types
@@ -437,7 +435,7 @@ If car is nil, it means the border between active and sleeping reminders."
   :group 'howm-menu-reminder)
 
 (defcustom howm-todo-menu-types
-  (if howm-reminder-old-format "[-+~! .]" "[-+~!.]")
+  "[-+~!.]"
   "*Regular expression of reminder types which are shown in menu as todo."
   :get #'howm-custom-reminder-get-types
   :set #'howm-custom-reminder-set-types

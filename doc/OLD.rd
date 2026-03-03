@@ -2081,7 +2081,6 @@
 * 旧体制を貫く場合: .emacs (howm ロードより前)に
     (setq howm-ref-header ">>") ; goto リンク
     (setq howm-keyword-header "<<") ; come-from リンク
-    (setq howm-reminder-old-format t) ; リマインダの書式変更をしない
     (setq howm-date-separator "/") ; 日付は 2003/10/21 の形式
     (setq howm-menu-keyword-regexp nil) ; 「%○○%」を menu-mode にしない
     (setq howm-menu-top nil) ; C-c , , で「<< %menu%」を開かない
