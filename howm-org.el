@@ -49,11 +49,17 @@
 (setq howm-view-title-header "*")
 (setq howm-dtime-format "[%Y-%m-%d %a %H:%M]")
 (setq howm-view-title-skip-regexp
-      (concat "\\(^\\*?\\s-*$\\)" "\\|"  ;; empty title or ...
-              ;; date & time
-              (concat "\\(^\\[[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\}"
-                      " .+ " ;; day of the week
-                      "[0-9]\\{2\\}:[0-9]\\{2\\}\\]\\)")))
+      (rx (or
+           ;; empty title line
+           (seq bol (? "*") (* blank) eol)
+           ;; org timestamp [YYYY-MM-DD DAY HH:MM]
+           (seq bol "[" (= 4 digit) "-" (= 2 digit) "-" (= 2 digit)
+                " " (+ (not " ")) " "
+                (= 2 digit) ":" (= 2 digit) "]")
+           ;; org property drawer lines (:PROPERTIES:, :KEY: val, :END:)
+           (seq bol ":" (+ (any alpha "_")) ":" (or (seq (+ blank) (* any)
+                                                         (* blank)))
+                eol))))
 (setq howm-menu-file-extension ".org")
 (setq howm-menu-skel-replace-rules '(("^= " . "* ") ("^== " . "** ")))
 (add-hook 'howm-view-summary-mode-hook #'howm-org-font-lock-minor-mode)
