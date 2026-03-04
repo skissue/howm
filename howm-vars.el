@@ -542,20 +542,8 @@ When it is nil, `howm-view-title-regexp' is used."
   "Sorting and filtering of matched entries."
   :group 'howm-list)
 
-(howm-defcustom-risky howm-list-normalizer nil
-  "*Obsolete. Use `howm-normalizer' insteadly."
-  :type '(radio (const :tag "Off (strongly recommended)" nil)
-                (function-item :tag "Sort by edit-time"
-                               howm-view-sort-by-mtime)
-                (function-item :tag "Sort by create-time"
-                               howm-view-sort-by-reverse-date)
-                function)
-  :group 'howm-sort)
-
 (howm-defcustom-risky howm-normalizer 'howm-sort-items-by-mtime
-  "*Default method to list matched notes.
-For backward compatibility, this value is overridden
-if `howm-list-normalizer' is non-nil."
+  "*Default method to list matched notes."
   :type '(radio (function-item :tag "Sort by edit-time"
                                howm-sort-items-by-mtime)
                 (function-item :tag "Sort by create-time"

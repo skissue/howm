@@ -599,69 +599,14 @@ key	binding
                                      "-w" ,roma))))
           (t (error "Invalid howm-migemo-client: %s" howm-migemo-client)))))
 
-(defun howm-normalize-oldp ()
-  howm-list-normalizer)
-
-;; ;; generate conv in howm-normalizer-pair
-;; (let ((methods '("random" "name" "numerical-name" "date" "reverse-date"
-;;                  "summary" "reminder" "mtime" "reverse")))
-;;   (mapcar (lambda (m)
-;;             (let ((command
-;;                    (howm-get-symbol nil "howm-view-sort-by-" m))
-;;                   (internal
-;;                    (howm-get-symbol nil "howm-sort-items-by-" m)))
-;;               (cons command internal)))
-;;           methods))
-
-(defun howm-normalizer-pair ()
-  (let* ((old howm-list-normalizer)
-         (new howm-normalizer)
-         (conv '((howm-view-sort-by-random . howm-sort-items-by-random)
-                 (howm-view-sort-by-name . howm-sort-items-by-name)
-                 (howm-view-sort-by-numerical-name
-                  . howm-sort-items-by-numerical-name)
-                 (howm-view-sort-by-date . howm-sort-items-by-date)
-                 (howm-view-sort-by-reverse-date
-                  . howm-sort-items-by-reverse-date)
-                 (howm-view-sort-by-summary . howm-sort-items-by-summary)
-                 (howm-view-sort-by-reminder . howm-sort-items-by-reminder)
-                 (howm-view-sort-by-mtime . howm-sort-items-by-mtime)
-                 (howm-view-sort-by-reverse . howm-sort-items-by-reverse)))
-         (p (assoc old conv))
-         (q (assoc new conv)))
-    (when q
-      (message "Warning: %s is wrong for howm-normalizer. Use %s." (car q) (cdr q))
-      (setq new (cdr q)))
-    (cond ((null old) (cons old new))
-          (p (cons nil (cdr p)))
-          (t (cons old #'identity)))))
-
-(defmacro howm-with-normalizer (&rest body)
-  (declare (indent 0))
-  (let ((g (cl-gensym)))
-    `(progn
-       (when (howm-normalize-oldp)
-         (message
-          "Warning: howm-list-normalizer is obsolete. Use howm-normalizer."))
-       (let* ((,g (howm-normalizer-pair))
-              (howm-list-normalizer (car ,g))
-              (howm-normalizer (cdr ,g)))
-         ,@body))))
-
 (defun howm-normalize-show (name item-list
                                  &optional keyword comefrom-regexp no-list-title
                                  fl-keywords)
   ;; comefrom-regexp and no-list-title are never used now. [2009-07-23]
-  (howm-with-normalizer
-    (if (howm-normalize-oldp)
-        ;; for backward compatibility.
-        (progn
-          (howm-view-summary name item-list fl-keywords)
-          (howm-list-normalize-old keyword comefrom-regexp no-list-title))
-      (let* ((r (howm-normalize item-list keyword
-                                comefrom-regexp no-list-title)))
-        (howm-call-view-summary name (cdr r) fl-keywords)
-        (car r)))))
+  (let* ((r (howm-normalize item-list keyword
+                            comefrom-regexp no-list-title)))
+    (howm-call-view-summary name (cdr r) fl-keywords)
+    (car r)))
 
 (defun howm-call-view-summary (name item-list-pair fl-keywords)
   (let ((orig (car item-list-pair))
@@ -723,58 +668,6 @@ key	binding
                         (m (list tag))
                         (t nil))))
     (cons matched item-list)))
-
-(defun howm-list-normalize-old (&optional keyword comefrom-regexp no-list-title)
-  "Sort displayed items in the standard order.
-This function is obsolete. Use `howm-normalize' insteadly.
---- Sorry, below documentation is incomplete. ---
-When KEYWORD is given, matched items are placed on the top.
-KEYWORD can be a string or a list of strings.
-"
-  (prog1
-      (howm-view-in-background
-        (howm-list-normalize-subr keyword comefrom-regexp no-list-title))
-    (howm-view-summary)))
-
-(defun howm-list-normalize-subr (keyword comefrom-regexp no-list-title)
-  "Obsolete. Do not use this any more."
-  (let ((matched nil))
-    (funcall howm-list-normalizer)
-    (when keyword
-      (let ((key-reg (or comefrom-regexp
-                         (howm-make-keyword-regexp1 keyword)))
-            (word-reg (format "\\<%s\\>"
-                              (if (stringp keyword)
-                                  (regexp-quote keyword)
-                                (regexp-opt keyword t))))
-            (wiki-reg (regexp-quote (howm-make-wiki-string keyword)))
-            (file-reg (and
-                       (stringp keyword)
-                       (format "^%s$"
-                               (regexp-quote (expand-file-name keyword)))))
-            (case-fold-search howm-keyword-case-fold-search))
-        ;; clean me.
-        (let ((check (lambda (tag flag reg &optional tag-when-multi-hits)
-                       (when flag
-                         (let ((m (if (eq tag 'file)
-                                      (howm-view-lift-by-name nil reg t)
-                                    (howm-view-lift-by-summary nil reg))))
-                           (when m
-                             (setq matched (cons tag matched)))
-                           (when (and tag-when-multi-hits (eq m 'multi))
-                             (setq matched
-                                   (cons tag-when-multi-hits matched))))))))
-          (funcall check 'word            howm-list-prefer-word word-reg)
-          (funcall check 'wiki            howm-list-prefer-wiki wiki-reg)
-          (funcall check 'related-keyword t howm-keyword-regexp)
-          (funcall check 'keyword         t key-reg 'keyword-multi-hits)
-          (funcall check 'file            file-reg file-reg))))
-    (when (and (howm-list-title-p)
-               (not no-list-title)
-               (not (and (member 'file matched)
-                         howm-inhibit-title-file-match)))
-      (howm-list-title-internal))
-    matched))
 
 (defun howm-make-keyword-string (keyword)
   (format howm-keyword-format keyword))
@@ -1228,8 +1121,7 @@ KEYWORD itself is always at the head of the returneded list.
 (defun howm-keyword-search (keyword &optional create-p open-unique-p)
   (howm-message-time "key-search"
     (howm-set-command 'howm-keyword-search)
-    (howm-with-normalizer
-      (howm-keyword-search-subr keyword create-p open-unique-p))))
+    (howm-keyword-search-subr keyword create-p open-unique-p)))
 
 (defun howm-keyword-search-subr (keyword create-p open-unique-p)
   (let* ((aliases (if (howm-support-aliases-p)
@@ -1282,10 +1174,7 @@ KEYWORD itself is always at the head of the returneded list.
      ((and open-unique-p (howm-single-element-p items))
       (howm-keyword-search-open-unique items))
      (t
-      (howm-call-view-summary name items-pair kw)
-      (when (howm-normalize-oldp)
-        ;; sorry for redundancy & inefficiency
-        (howm-list-normalize-old aliases comefrom-regexp t))))
+      (howm-call-view-summary name items-pair kw)))
     ;; record history
     (when (not menu-p)
       (howm-write-history keyword))
