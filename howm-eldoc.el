@@ -28,10 +28,7 @@
 ;; on a howm ref link (">>> path/to/file").  Only concrete file-path
 ;; links are supported (expand-file-name + file-exists-p gate).
 ;;
-;; Requires Emacs 28+ (eldoc-documentation-functions).
-;;
 ;; Usage:
-;;   (require 'howm-eldoc)
 ;;   (add-hook 'howm-mode-hook #'howm-eldoc-mode)
 
 ;;; Code:
