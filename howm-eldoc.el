@@ -86,10 +86,8 @@ Respects `action-lock-case-fold-search'.  Leaves match data set."
         (while (and (<= (point) c)
                     (re-search-forward regexp eol t)
                     (not result))
-          (let ((beg (match-beginning pos))
-                (end (match-end pos)))
-            (when (and beg (<= beg c) (< c end))
-              (setq result (match-string-no-properties pos)))))))
+          (when (and (<= (match-beginning 0) c) (< c (match-end 0)))
+            (setq result (match-string-no-properties pos))))))
     result))
 
 (defun howm-eldoc-keyword-at-point ()
