@@ -1357,7 +1357,9 @@ B is items in REFERENCE-ITEM-LIST that do not match in case 1."
                                          str-list
                                          "\\|"))))
                      `((,r . howm-view-hilit-face))))))
-      (let* ((f (expand-file-name str)))
+      (let* ((resolved (and howm-search-privilege-resolver
+                          (funcall howm-search-privilege-resolver str)))
+             (f (expand-file-name (or resolved str))))
         (when (file-exists-p f)
           (let ((fi (howm-view-make-item f)))
             (howm-view-item-set-privilege fi t)

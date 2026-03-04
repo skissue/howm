@@ -179,6 +179,14 @@ Should return the string to use in place of the file name in
 `howm-template-file-format'.
 If nil, the abbreviated file name is used directly.")
 
+(defvar howm-search-privilege-resolver nil
+  "Function to resolve a search string to a file path for privileged treatment.
+If non-nil, called with the search string.  Should return a file path
+if the string can be resolved to a target file, or nil otherwise.
+This is the inverse of `howm-template-file-transformer': it maps a
+custom link string back to the underlying file.
+When nil, only the default `file-exists-p' check is used.")
+
 ;;; --- level 3 ---
 
 ;; As you like.
@@ -634,8 +642,14 @@ key	binding
             (wiki-reg (regexp-quote (howm-make-wiki-string keyword)))
             (file-reg (and
                        (stringp keyword)
-                       (format "^%s$"
-                               (regexp-quote (expand-file-name keyword)))))
+                       (let ((resolved
+                              (and howm-search-privilege-resolver
+                                   (funcall howm-search-privilege-resolver
+                                            keyword))))
+                         (format "^%s$"
+                                 (regexp-quote
+                                  (expand-file-name
+                                   (or resolved keyword)))))))
             (case-fold-search howm-keyword-case-fold-search))
         (cl-labels ((check (tag flag reg &optional tag-when-multi-hits)
                         (when flag
