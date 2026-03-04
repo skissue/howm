@@ -48,6 +48,30 @@
   :type 'integer
   :group 'howm-eldoc)
 
+(defcustom howm-eldoc-fontify-preview nil
+  "When non-nil, fontify the preview using the target file's major mode."
+  :type 'boolean
+  :group 'howm-eldoc)
+
+(defvar howm-eldoc--cache (make-hash-table :test #'equal)
+  "Cache hash-table mapping FILEPATH to (MODTIME . PREVIEW-STRING).")
+
+(defun howm-eldoc--cache-get (filepath)
+  "Return cached preview for FILEPATH if still valid, else nil."
+  (when-let* ((entry (gethash filepath howm-eldoc--cache))
+              (modtime (car entry))
+              ((equal modtime (file-attribute-modification-time
+                               (file-attributes filepath)))))
+    (cdr entry)))
+
+(defun howm-eldoc--cache-put (filepath preview)
+  "Store PREVIEW for FILEPATH in the cache."
+  (puthash filepath
+           (cons (file-attribute-modification-time
+                  (file-attributes filepath))
+                 preview)
+           howm-eldoc--cache))
+
 (defun howm-eldoc-match-keyword (regexp pos)
   "If point is on a match of REGEXP on the current line, return group POS.
 Respects `action-lock-case-fold-search'.  Leaves match data set."
@@ -81,6 +105,14 @@ Respects `action-lock-case-fold-search'.  Leaves match data set."
 
 (defun howm-eldoc-preview (filepath)
   "Return a preview string of the first section of FILEPATH, or nil."
+  (or (howm-eldoc--cache-get filepath)
+      (let ((preview (howm-eldoc--make-preview filepath)))
+        (when preview
+          (howm-eldoc--cache-put filepath preview))
+        preview)))
+
+(defun howm-eldoc--make-preview (filepath)
+  "Build a preview string for FILEPATH."
   (with-temp-buffer
     (howm-page-insert:file filepath)
     (when (> (buffer-size) 0)
@@ -88,27 +120,32 @@ Respects `action-lock-case-fold-search'.  Leaves match data set."
       (goto-char (point-min))
       (let* ((region (howm-view-paragraph-region))
              (beg (car region))
-             (end (cadr region))
-             (text (string-trim-right
-                    (buffer-substring-no-properties beg end))))
-        (when (> (length text) 0)
-          (let ((lines (split-string text "\n")))
-            (when (> (length lines) howm-eldoc-preview-max-lines)
-              (setq lines (append (seq-take lines howm-eldoc-preview-max-lines)
-                                  '("...")))
-              (setq text (string-join lines "\n"))))
-          text)))))
+             (end (cadr region)))
+        (when howm-eldoc-fontify-preview
+          (delay-mode-hooks
+            (when-let* ((mode (assoc filepath auto-mode-alist
+                                     #'string-match-p)))
+              (funcall (cdr mode)))
+            (font-lock-ensure beg end)))
+        (let ((text (string-trim-right
+                     (buffer-substring beg end))))
+          (when (> (length text) 0)
+            (let ((lines (split-string text "\n")))
+              (when (> (length lines) howm-eldoc-preview-max-lines)
+                (setq lines (append (seq-take lines howm-eldoc-preview-max-lines)
+                                    '("...")))
+                (setq text (string-join lines "\n"))))
+            text))))))
 
 (defun howm-eldoc-function (callback &rest _plist)
   "Eldoc documentation function for howm ref links.
 Shows a preview of the target file when point is on a ref link
 whose keyword resolves to an existing file."
-  (let* ((keyword (howm-eldoc-keyword-at-point))
-         (filepath (and keyword (howm-eldoc-resolve-file keyword)))
-         (preview (and filepath (howm-eldoc-preview filepath))))
-    (when preview
-      (funcall callback preview)
-      t)))
+  (when-let* ((keyword (howm-eldoc-keyword-at-point))
+              (filepath (howm-eldoc-resolve-file keyword))
+              (preview (howm-eldoc-preview filepath)))
+    (funcall callback preview)
+    t))
 
 ;;;###autoload
 (define-minor-mode howm-eldoc-mode
