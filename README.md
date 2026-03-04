@@ -1,3 +1,7 @@
+This is an opinionated soft-fork of howm, with many changes far too personalized, invasive, and untested to be proposed upstream. Check out [the original project](https://kaorahi.github.io/howm/)!
+
+The upstream README follows below.
+
 # Howm: Write fragmentarily and read collectively.
 
 Howm is a note-taking tool on Emacs. It is similar to emacs-wiki.el; you can enjoy hyperlinks and full-text search easily. It is not similar to emacs-wiki.el; it can be combined with any format.
