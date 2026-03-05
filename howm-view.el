@@ -1011,7 +1011,7 @@ to see file names."
                            (lambda (p) (cl-member p hit-pages
                                                         :test #'howm-page=))
                            pages))
-             (nohit-items (mapcar #'howm-make-item nohit-pages))
+             (nohit-items (mapcar (lambda (p) (howm-make-item :page p)) nohit-pages))
              (all-items (if (null nohit-items)
                             items
                           (append items nohit-items))))
@@ -1192,7 +1192,7 @@ B is items in REFERENCE-ITEM-LIST that do not match in case 1."
              (cons match
                    (cl-mapcan
                     (lambda (a) (and (not (howm-rangeset-hit-p (cdr a)))
-                                     (list (howm-make-item (car a)))))
+                                     (list (howm-make-item :page (car a)))))
                     alist))))
           (remove-match (cl-remove-if matcher item-list))
           (t (cl-remove-if-not matcher item-list)))))
@@ -1361,7 +1361,7 @@ B is items in REFERENCE-ITEM-LIST that do not match in case 1."
                           (funcall howm-search-privilege-resolver str)))
              (f (expand-file-name (or resolved str))))
         (when (file-exists-p f)
-          (let ((fi (howm-view-make-item f)))
+          (let ((fi (howm-make-item :page (howm-make-page:file f))))
             (howm-view-item-set-privilege fi t)
             (setq items (cons fi items)))))
       (list kw name items))))

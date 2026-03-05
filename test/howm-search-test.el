@@ -247,6 +247,30 @@ resolves to an existing file."
       (should (string= (expand-file-name (howm-item-name priv))
                         (expand-file-name target-path))))))
 
+(ert-deftest howm-test-item-is-struct ()
+  "howm-item should be a cl-defstruct, supporting accessors and copy."
+  (let* ((page (howm-make-page:file "/tmp/test.txt"))
+         (item (howm-make-item :page page :summary "summary" :place 42 :offset 10 :home "home" :privilege t)))
+    ;; accessors
+    (should (equal (howm-item-page item) page))
+    (should (string= (howm-item-summary item) "summary"))
+    (should (= (howm-item-place item) 42))
+    (should (= (howm-item-offset item) 10))
+    (should (string= (howm-item-home item) "home"))
+    (should (eq (howm-item-privilege item) t))
+    (should (null (howm-item-range item)))
+    ;; setters
+    (howm-item-set-summary item "new")
+    (should (string= (howm-item-summary item) "new"))
+    ;; copy is independent
+    (let ((dup (howm-item-dup item)))
+      (howm-item-set-summary dup "dup")
+      (should (string= (howm-item-summary item) "new"))
+      (should (string= (howm-item-summary dup) "dup")))
+    ;; default summary is ""
+    (let ((bare (howm-make-item :page page)))
+      (should (string= (howm-item-summary bare) "")))))
+
 (provide 'howm-search-test)
 
 ;;; howm-search-test.el ends here

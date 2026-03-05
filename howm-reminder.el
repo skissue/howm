@@ -477,7 +477,7 @@ See docstring of the variable `howm-menu-reminder-separators' for details."
                                  (- howm-todo-priority-schedule-top
                                     (or (car pair) howm-huge-))
                                (or (car pair) (- howm-huge-)))
-                             (howm-make-item (howm-make-page:nil) (cdr pair))))
+                             (howm-make-item :page (howm-make-page:nil) :summary (cdr pair))))
                      separators)))
     (mapcar #'cdr
             (sort (append is sep) #'(lambda (x y) (> (car x) (car y)))))))

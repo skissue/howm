@@ -153,7 +153,7 @@ still ignore the dot files inside it."
 
 (defun howm-folder-items:pages (folder &optional recursive-p)
   (let ((summary ""))
-    (mapcar (lambda (p) (howm-make-item p summary))
+    (mapcar (lambda (p) (howm-make-item :page p :summary summary))
             (howm-folder-pages:pages folder))))
 
 ;; should be removed, or renamed at least
@@ -192,7 +192,7 @@ still ignore the dot files inside it."
                 (let ((buf (car g))
                       (place (cadr g))
                       (content (cl-caddr g)))
-                  (howm-make-item (howm-make-page:buf buf) content place)))
+                  (howm-make-item :page (howm-make-page:buf buf) :summary content :place place)))
               grep-result))))
 
 (defun howm-list-buffers (&optional all)
@@ -234,7 +234,7 @@ still ignore the dot files inside it."
                                            (let ((b (line-beginning-position))
                                                  (e (line-end-position)))
                                              (buffer-substring b e)))))
-                            (howm-make-item page summary place)))
+                            (howm-make-item :page page :summary summary :place place)))
                         (howm-cl-remove-duplicates*
                          (cons (mark-marker) mark-ring)
                          :test #'howm-mark-same-line-p))))
@@ -268,7 +268,7 @@ still ignore the dot files inside it."
 (defun howm-folder-items:files (folder &optional recursive-p)
   (let ((summary ""))
     (mapcar (lambda (f)
-              (howm-make-item (howm-make-page:file f) summary))
+              (howm-make-item :page (howm-make-page:file f) :summary summary))
             (howm-folder-files:files folder))))
 
 (defun howm-folder-grep-internal:files (folder pattern &optional fixed-p)
@@ -358,7 +358,7 @@ ssearch: ")
                    (howm-files-in-directory (cdr folder))
                  (directory-files (cdr folder) t))))
     (mapcar (lambda (f)
-              (howm-make-item (howm-make-page:rot13file f)))
+              (howm-make-item :page (howm-make-page:rot13file f)))
             files)))
 
 (defun howm-folder-grep-internal:rot13dir (folder pattern-list &optional fixed-p)
@@ -403,7 +403,7 @@ ssearch: ")
                             (if (and exclusion-checker
                                      (funcall exclusion-checker file))
                                 nil
-                              (howm-make-item file content place))))
+                              (howm-make-item :page file :summary content :place place))))
                         found)))
     (if exclusion-checker
         (remove nil items)
@@ -879,36 +879,26 @@ STR can be list of strings. They are regarded as \"or\" pattern of all elements.
 ;;   * place
 ;;   * and conventional properties
 
-(defun howm-make-item (page &optional summary place offset home privilege)
-  (list page summary place offset home privilege))
-(defun howm-item-page      (item) (nth 0 item)) ;; page can be nil.
-(defun howm-item-summary   (item) (howm-item-nth 1 item ""))
-(defun howm-item-place     (item) (howm-item-nth 2 item nil))
-(defun howm-item-offset    (item) (howm-item-nth 3 item nil))
-(defun howm-item-home      (item) (howm-item-nth 4 item nil))
-(defun howm-item-privilege (item) (howm-item-nth 5 item nil))
-(defun howm-item-nth (n item default)
-  (or (nth n item) default))
-(defun howm-item-set-page (item val)
-  (setf (nth 0 item) val))
-(defun howm-item-set-summary (item val)
-  (setf (nth 1 item) val))
-(defun howm-item-set-offset (item val)
-  (setf (nth 3 item) val))
-(defun howm-item-set-home (item val)
-  (setf (nth 4 item) val))
-(defun howm-item-set-privilege (item val)
-  (setf (nth 5 item) val))
+(cl-defstruct (howm-item (:constructor howm-make-item)
+                         (:copier howm-item-copy))
+  page (summary "") place offset home privilege range)
 
 (defun howm-item-name (item)
   (format "%s" (howm-page-name (howm-item-page item))))
 
-(defun howm-item-dup (item) (mapcar #'identity item))
+(defun howm-item-dup (item) (howm-item-copy item))
 
-;; For backward compatibility. Don't use them any more.
-;; ;; item = (filename summary place offset home)
-(defun howm-view-make-item (filename &rest r)
-  (apply #'howm-make-item (cons (howm-make-page:file filename) r)))
+(defun howm-item-set-page (item val)
+  (setf (howm-item-page item) val))
+(defun howm-item-set-summary (item val)
+  (setf (howm-item-summary item) val))
+(defun howm-item-set-offset (item val)
+  (setf (howm-item-offset item) val))
+(defun howm-item-set-home (item val)
+  (setf (howm-item-home item) val))
+(defun howm-item-set-privilege (item val)
+  (setf (howm-item-privilege item) val))
+
 (defalias 'howm-view-item-filename      #'howm-item-name)
 (defalias 'howm-view-item-summary       #'howm-item-summary)
 (defalias 'howm-view-item-place         #'howm-item-place)
