@@ -82,3 +82,9 @@ update:
 
 test:
 	HOWM_TEST=t $(EMACS) -q --no-site-file -l $(TEST_INIT)
+
+test-ert:
+	$(EMACS) -Q -batch \
+	  --eval "(setq load-path (cons \"$(srcdir)\" load-path))" \
+	  -l test/howm-search-test.el \
+	  -f ert-run-tests-batch-and-exit
