@@ -776,7 +776,7 @@ ITEM-LIST is list of items which should be shown."
     (let* ((r (howm-menu-recent-regexp))
            (searcher (lambda (f)
                        (let* ((is (or (howm-view-search-items r (list f) summarizer)
-                                      (list (howm-make-item f)))))
+                                      (list (howm-make-item :page f)))))
                          (mapc #'howm-view-change-title is)
                          is))))
       (if randomp
