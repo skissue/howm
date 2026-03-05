@@ -48,7 +48,10 @@
 (defcustom howm-eldoc-fontify-preview nil
   "When non-nil, fontify the preview using the target file's major mode."
   :type 'boolean
-  :group 'howm-eldoc)
+  :group 'howm-eldoc
+  :set (lambda (sym val)
+         (set-default-toplevel-value sym val)
+         (clrhash howm-eldoc--cache)))
 
 (defvar howm-eldoc--cache (make-hash-table :test #'equal)
   "Cache hash-table mapping FILEPATH to (MODTIME . PREVIEW-STRING).")
