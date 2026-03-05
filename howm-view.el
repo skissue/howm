@@ -153,11 +153,9 @@
     ("^ +" . howm-view-empty-face)))
 (howm-defvar-risky howm-view-contents-font-lock-keywords nil)
 
-(howm-defvar-risky *howm-view-font-lock-keywords* nil
-  "For internal use. Don't set this variable.
-This is a shameful global variable and should be clearned in future.")
 (howm-defvar-risky howm-view-font-lock-keywords nil
-  "For internal use.")
+  "For internal use.  Buffer-local list of extra font-lock keywords
+\(e.g. search-term highlighting) for the current summary buffer.")
 (make-variable-buffer-local 'howm-view-font-lock-keywords)
 
 (defvar howm-view-mode-line-text ""
@@ -207,8 +205,6 @@ key	binding
                                   howm-view-summary-font-lock-keywords
                                   ;; dirty! Clean dependency between files.
                                   (howm-reminder-today-font-lock-keywords))
-  (when *howm-view-font-lock-keywords*
-    (setq howm-view-font-lock-keywords *howm-view-font-lock-keywords*))
   (when howm-view-font-lock-keywords
     (cheat-font-lock-merge-keywords howm-view-font-lock-keywords
                                     howm-user-font-lock-keywords
@@ -257,12 +253,7 @@ key	binding
   (make-local-variable 'font-lock-keywords)
   (cheat-font-lock-mode)
   (let ((ck `((,howm-view-header-regexp (0 howm-view-hilit-face))))
-        (sk (or (howm-view-font-lock-keywords)
-                *howm-view-font-lock-keywords*)))
-;;         ;; extremely dirty!! [2003/10/06 21:08]
-;;         (sk (or (with-current-buffer (riffle-summary-buffer)
-;;                   font-lock-keywords)
-;;                 *howm-view-font-lock-keywords*)))
+        (sk (howm-view-font-lock-keywords)))
     (cheat-font-lock-merge-keywords sk ck
                                     howm-user-font-lock-keywords
                                     howm-view-contents-font-lock-keywords)
@@ -317,20 +308,20 @@ key	binding
 ;;; summary
 
 (defun howm-view-summary (&optional name item-list fl-keywords)
-  (let* ((*howm-view-font-lock-keywords* fl-keywords) ;; ok? [2008-07-11]
-         (r (riffle-summary name item-list ':howm
+  (let ((r (riffle-summary name item-list ':howm
                            (howm-view-in-background-p))))
     (if (null r)
         (message "No match: \"%s\"" name)
       (howm-view-expire-uniq)
-      ;; We want to entry font-lock keywords even when background-p.
-      (when *howm-view-font-lock-keywords*
-        (setq howm-view-font-lock-keywords *howm-view-font-lock-keywords*)))
+      ;; Set buffer-local font-lock keywords in the summary buffer
+      ;; (current after riffle-summary) for both normal and background cases.
+      (when fl-keywords
+        (setq howm-view-font-lock-keywords fl-keywords)
+        (cheat-font-lock-merge-keywords howm-view-font-lock-keywords
+                                        howm-user-font-lock-keywords
+                                        howm-view-summary-font-lock-keywords)
+        (cheat-font-lock-fontify)))
     r))
-
-;; (defun howm-view-summary (&optional name item-list)
-;;   (let ((*howm-view-font-lock-keywords* t))
-;;     (riffle-summary name item-list ':howm)))
 
 (defun howm-view-summary-open (&optional reverse-delete-p)
   (interactive "P")
@@ -412,19 +403,22 @@ key	binding
     (howm-record-view-window-configuration)
     (howm-view-contents-open-sub (not persistent))))
 
-(defvar *howm-view-item-privilege* nil) ;; dirty
+(defvar-local howm-view-item-opened-privilege nil
+  "Buffer-local flag indicating whether the item that opened this buffer
+was privileged.  Set by `howm-view-contents-open-sub' and consumed by
+`howm-auto-narrow'.")
 
 (defun howm-view-contents-open-sub (&optional kill)
   (let* ((item (riffle-contents-current-item))
          (page (howm-item-page item))
          (offset (howm-view-item-offset item))
          (pos (- (point) offset))
-         (viewer (howm-view-external-viewer page)))
+         (viewer (howm-view-external-viewer page))
+         (priv (howm-view-item-privilege item)))
     (when kill
       (riffle-kill-buffer))
-    (when (howm-view-item-privilege item)
+    (when priv
       (riffle-restore-window-configuration)) ;; force without mode check
-    (setq *howm-view-item-privilege* (howm-view-item-privilege item)) ;; dirty
     (run-hooks 'howm-view-before-open-hook)
     (if viewer
         (howm-view-call-external-viewer viewer page)
@@ -434,6 +428,7 @@ key	binding
                                (widen))
                              (goto-char pos))
                            t))
+    (setq howm-view-item-opened-privilege priv)
     (run-hooks 'howm-view-open-hook)))
 
 (defun howm-view-open-item (item &optional position-setter merely)

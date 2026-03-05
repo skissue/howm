@@ -452,12 +452,10 @@ and replace a sub-expression, e.g.
                 (equal e (point-max)))))))
 
 (defun howm-auto-narrow ()
-  (when (cond (*howm-view-item-privilege* nil)
+  (when (cond (howm-view-item-opened-privilege nil)
               ((eq howm-auto-narrow t) t)
               (t (member (howm-command) howm-auto-narrow)))
     (howm-narrow-to-memo)))
-;;   (when (and (member (howm-command) howm-auto-narrow)
-;;              (not *howm-view-item-privilege*))
 
 ;;; select file for new memo by hand
 
