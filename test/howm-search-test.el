@@ -271,6 +271,81 @@ resolves to an existing file."
     (let ((bare (howm-make-item :page page)))
       (should (string= (howm-item-summary bare) "")))))
 
+;; ── Phase 3: single-pass normalize tests ────────────────────────
+
+(ert-deftest howm-test-normalize-single-pass-ordering ()
+  "Items with higher-priority matches should sort above lower-priority ones."
+  (howm-test-with-fixtures
+      '(("2025/01/a.txt" . "= A\n<<< mykey\nBody with mykey in it.\n")
+        ("2025/01/b.txt" . "= B\n[[mykey]]\nJust a wiki link.\n")
+        ("2025/01/c.txt" . "= C\nmykey appears here.\n"))
+    (let* ((folder (howm-search-path-folder))
+           (items (howm-view-search-folder-items "mykey" folder nil t))
+           (howm-list-prefer-wiki t)
+           (howm-list-prefer-word t)
+           (result (howm-normalize items "mykey"))
+           (sorted-items (cadr result))
+           (summaries (howm-test-item-summaries sorted-items)))
+      ;; The item with <<< mykey should be at the very top
+      (should (string-match-p "<<<" (car summaries))))))
+
+(ert-deftest howm-test-normalize-single-pass-keyword-multi-hits ()
+  "When multiple items have <<< keyword, matched should include keyword-multi-hits."
+  (howm-test-with-fixtures
+      '(("2025/01/a.txt" . "= A\n<<< dup\nBody.\n")
+        ("2025/01/b.txt" . "= B\n<<< dup\nAnother body.\n")
+        ("2025/01/c.txt" . "= C\ndup appears here.\n"))
+    (let* ((folder (howm-search-path-folder))
+           (items (howm-view-search-folder-items "dup" folder nil t))
+           (result (howm-normalize items "dup"))
+           (matched (car result)))
+      (should (member 'keyword matched))
+      (should (member 'keyword-multi-hits matched)))))
+
+(ert-deftest howm-test-normalize-single-pass-no-multi-hits-for-single ()
+  "When only one item has <<< keyword, keyword-multi-hits should not appear."
+  (howm-test-with-fixtures
+      '(("2025/01/a.txt" . "= A\n<<< solo\nBody.\n")
+        ("2025/01/b.txt" . "= B\nsolo appears here.\n"))
+    (let* ((folder (howm-search-path-folder))
+           (items (howm-view-search-folder-items "solo" folder nil t))
+           (result (howm-normalize items "solo"))
+           (matched (car result)))
+      (should (member 'keyword matched))
+      (should-not (member 'keyword-multi-hits matched)))))
+
+(ert-deftest howm-test-normalize-single-pass-respects-prefer-flags ()
+  "When howm-list-prefer-word is nil, 'word should not appear in matched."
+  (howm-test-with-fixtures
+      '(("2025/01/a.txt" . "= A\nword match test.\n"))
+    (let* ((folder (howm-search-path-folder))
+           (items (howm-view-search-folder-items "test" folder nil t))
+           (howm-list-prefer-word nil)
+           (howm-list-prefer-wiki nil)
+           (result (howm-normalize items "test"))
+           (matched (car result)))
+      (should-not (member 'word matched))
+      (should-not (member 'wiki matched)))))
+
+(ert-deftest howm-test-normalize-rank-item-bitmask ()
+  "howm-normalize-rank-item should return correct bitmask values."
+  (howm-test-with-fixtures
+      '(("2025/01/a.txt" . "= A\n<<< foo\nBody.\n"))
+    (let* ((folder (howm-search-path-folder))
+           (items (howm-view-search-folder-items "foo" folder nil t))
+           (key-reg (howm-make-keyword-regexp1 "foo"))
+           (word-reg (format "\\<%s\\>" (regexp-quote "foo"))))
+      ;; Find the item with <<< in its summary
+      (let ((kw-item (cl-find-if (lambda (i)
+                                   (string-match-p "<<<" (howm-item-summary i)))
+                                 items)))
+        (when kw-item
+          (let ((rank (howm-normalize-rank-item kw-item
+                        :key-reg key-reg :word-reg word-reg)))
+            ;; Should have keyword bit (8) and related-keyword bit (4) set
+            (should (/= 0 (logand rank 8)))
+            (should (/= 0 (logand rank 4)))))))))
+
 (provide 'howm-search-test)
 
 ;;; howm-search-test.el ends here
