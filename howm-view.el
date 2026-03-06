@@ -731,12 +731,6 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
           (remove-p (howm-view-remove-by-contents r))
           (t (howm-view-search-in-result r)))))
 
-(howm-if-ver1dot3 nil
-  (defcustom howm-view-search-in-result-correctly t
-    "*Non nil if search-in-result should be aware of paragraph."
-    :type 'boolean
-    :group 'howm-search))
-
 (defun howm-view-search-in-result (regexp)
 ;;   (interactive "sSearch in result (grep): ")
   (let* ((orig (howm-view-name))
@@ -747,9 +741,8 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
          (folder (howm-make-folder-from-items orig-item-list)))
     (howm-write-history regexp)
     (howm-view-search-folder regexp folder name)
-    (when howm-view-search-in-result-correctly
-      (howm-view-summary-rebuild (howm-item-list-filter (howm-view-item-list)
-                                                        orig-item-list)))))
+    (howm-view-summary-rebuild (howm-item-list-filter (howm-view-item-list)
+                                                      orig-item-list))))
 
 (defun howm-view-remove-by-contents (regexp)
 ;;   (interactive "s(Reject) Search in result (grep): ")
@@ -793,28 +786,19 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
 (defun howm-filter-items-uniq (item-list &optional remove-p)
   (when remove-p
     (error "Not supported."))
-  (let* ((howm-view-filter-uniq-prev (if howm-view-search-in-result-correctly
-                                         (cons "" nil)
-                                       ""))
-         (pred (if howm-view-search-in-result-correctly
-                   (lambda (item)
-                     (let ((page (howm-item-page item))
-                           (place (howm-item-place item))
-                           (range (howm-item-range item))
-                           (p-page  (car howm-view-filter-uniq-prev))
-                           (p-range (cdr howm-view-filter-uniq-prev)))
-                       (prog1
-                           (not (and (howm-page= page p-page)
-                                     (and place p-range
-                                          (<= (car p-range) place)
-                                          (<= place (cadr p-range)))))
-                         (setq howm-view-filter-uniq-prev (cons page range)))))
-                 ;; old code
-                 (lambda (item)
-                   (let ((f (howm-view-item-filename item)))
-                     (prog1
-                         (not (howm-page= f howm-view-filter-uniq-prev))
-                       (setq howm-view-filter-uniq-prev f)))))))
+  (let* ((howm-view-filter-uniq-prev (cons "" nil))
+         (pred (lambda (item)
+                 (let ((page (howm-item-page item))
+                       (place (howm-item-place item))
+                       (range (howm-item-range item))
+                       (p-page  (car howm-view-filter-uniq-prev))
+                       (p-range (cdr howm-view-filter-uniq-prev)))
+                   (prog1
+                       (not (and (howm-page= page p-page)
+                                 (and place p-range
+                                      (<= (car p-range) place)
+                                      (<= place (cadr p-range)))))
+                     (setq howm-view-filter-uniq-prev (cons page range)))))))
     (cl-remove-if-not pred item-list)))
 
 (defun howm-filter-items-by-name (item-list regexp &optional remove-p)
@@ -870,14 +854,7 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
 
 (defun howm-filter-items-by-contents (item-list regexp &optional remove-p)
   (let* ((match (howm-view-search-folder-items-fi regexp item-list)))
-    (if howm-view-search-in-result-correctly
-        (howm-item-list-filter item-list match remove-p)
-      ;; old behavior
-      (let ((match-names (howm-cl-remove-duplicates*
-                          (mapcar #'howm-item-name match))))
-        (howm-filter-items (lambda (item)
-                             (member (howm-item-name item) match-names))
-                           item-list remove-p)))))
+    (howm-item-list-filter item-list match remove-p)))
 
 (defun howm-view-file-name-format ()
   howm-file-name-format) ;; defined in howm-common.el
@@ -951,7 +928,7 @@ If the original title matches this regexp, the first non-matched line
 is shown as title instead.
 Nil disables this feature.
 
-This feature does not work when `howm-view-search-in-result-correctly' is nil."
+This feature requires paragraph-aware search-in-result."
       :type `(radio (const :tag "Off" nil)
                     (const :tag ,t1 ,r1)
                     (const :tag ,t2 ,r2)
@@ -984,33 +961,20 @@ to see file names."
 (defun howm-entitle-items-style1 (title-regexp item-list)
   "Put title instead of summary."
   (let ((items (howm-view-search-folder-items-fi title-regexp item-list)))
-    (if howm-view-search-in-result-correctly
-        (let* ((r (howm-item-list-filter items item-list 'with-rest))
-               (hit-items (car r))
-               (nohit-items (cdr r))
-               ;; should I use (howm-classify #'howm-item-place nohit-items) ?
-               (noplace-nohit-items
-                (cl-remove-if #'howm-item-place nohit-items))
-               (rest-items
-                (howm-item-list-filter (cl-remove-if-not #'howm-item-place
-                                                              nohit-items)
-                                       items t))
-               (all-items (append hit-items noplace-nohit-items rest-items)))
-          (when howm-view-title-skip-regexp
-            (mapc #'howm-view-change-title all-items))
-          all-items)
-      (let* ((pages (howm-cl-remove-duplicates* (mapcar #'howm-item-page
-                                                        item-list)))
-             (hit-pages (mapcar #'howm-item-page items))
-             (nohit-pages (cl-remove-if
-                           (lambda (p) (cl-member p hit-pages
-                                                        :test #'howm-page=))
-                           pages))
-             (nohit-items (mapcar (lambda (p) (howm-make-item :page p)) nohit-pages))
-             (all-items (if (null nohit-items)
-                            items
-                          (append items nohit-items))))
-        all-items))))
+    (let* ((r (howm-item-list-filter items item-list 'with-rest))
+           (hit-items (car r))
+           (nohit-items (cdr r))
+           ;; should I use (howm-classify #'howm-item-place nohit-items) ?
+           (noplace-nohit-items
+            (cl-remove-if #'howm-item-place nohit-items))
+           (rest-items
+            (howm-item-list-filter (cl-remove-if-not #'howm-item-place
+                                                          nohit-items)
+                                   items t))
+           (all-items (append hit-items noplace-nohit-items rest-items)))
+      (when howm-view-title-skip-regexp
+        (mapc #'howm-view-change-title all-items))
+      all-items)))
 
 (defvar howm-entitle-items-style2-max-length 20)
 (defvar howm-entitle-items-style2-format "%-13s | %s") ;; for title and summary
