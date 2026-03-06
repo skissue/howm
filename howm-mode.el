@@ -625,6 +625,37 @@ key	binding
         (howm-list-title-put-previous orig)
       (howm-list-title-clear-previous))))
 
+(defun howm-results-rank (item-list keyword &optional comefrom-regexp)
+  "Rank ITEM-LIST by relevance to KEYWORD.
+COMEFROM-REGEXP, if non-nil, overrides the default keyword regexp.
+Returns (MATCHED-TAGS . RANKED-ITEM-LIST)."
+  (let ((key-reg (or comefrom-regexp
+                     (howm-make-keyword-regexp1 keyword)))
+        (word-reg (and howm-list-prefer-word
+                       (format "\\<%s\\>"
+                               (if (stringp keyword)
+                                   (regexp-quote keyword)
+                                 (regexp-opt keyword t)))))
+        (wiki-reg (and howm-list-prefer-wiki
+                       (regexp-quote (howm-make-wiki-string keyword))))
+        (file-reg (and
+                   (stringp keyword)
+                   (let ((resolved
+                          (and howm-search-privilege-resolver
+                               (funcall howm-search-privilege-resolver
+                                        keyword))))
+                     (format "^%s$"
+                             (regexp-quote
+                              (expand-file-name
+                               (or resolved keyword)))))))
+        (case-fold-search howm-keyword-case-fold-search))
+    (howm-normalize-single-pass
+     item-list
+     (list :key-reg key-reg
+           :word-reg word-reg
+           :wiki-reg wiki-reg
+           :file-reg file-reg))))
+
 (defun howm-normalize (item-list
                        &optional keyword comefrom-regexp no-list-title)
   ;; no-list-title is never used now. [2009-07-23]
@@ -633,34 +664,9 @@ key	binding
         (entitled-item-list nil))
     (setq item-list (funcall howm-normalizer item-list))
     (when keyword
-      (let ((key-reg (or comefrom-regexp
-                         (howm-make-keyword-regexp1 keyword)))
-            (word-reg (and howm-list-prefer-word
-                          (format "\\<%s\\>"
-                                  (if (stringp keyword)
-                                      (regexp-quote keyword)
-                                    (regexp-opt keyword t)))))
-            (wiki-reg (and howm-list-prefer-wiki
-                          (regexp-quote (howm-make-wiki-string keyword))))
-            (file-reg (and
-                       (stringp keyword)
-                       (let ((resolved
-                              (and howm-search-privilege-resolver
-                                   (funcall howm-search-privilege-resolver
-                                            keyword))))
-                         (format "^%s$"
-                                 (regexp-quote
-                                  (expand-file-name
-                                   (or resolved keyword)))))))
-            (case-fold-search howm-keyword-case-fold-search))
-        (let ((r (howm-normalize-single-pass
-                  item-list
-                  (list :key-reg key-reg
-                        :word-reg word-reg
-                        :wiki-reg wiki-reg
-                        :file-reg file-reg))))
-          (setq matched (car r))
-          (setq item-list (cdr r)))))
+      (let ((r (howm-results-rank item-list keyword comefrom-regexp)))
+        (setq matched (car r))
+        (setq item-list (cdr r))))
     (when (and (howm-list-title-p)
                (not no-list-title)
                (not (and (member 'file matched)

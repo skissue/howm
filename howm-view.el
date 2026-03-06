@@ -75,7 +75,7 @@
     ("date" . howm-view-filter-by-date)
     ("reminder" . howm-view-filter-by-reminder)
     ("contents" . howm-view-actually-filter-by-contents)
-    ("grep" . howm-view-grep-in-contents)
+    ("grep" . howm-view-grep-in-result)
     ("Region" . howm-view-filter-by-region)
     ("Around" . howm-view-filter-by-around)
     ("uniq" . howm-view-filter-uniq)
@@ -189,7 +189,7 @@ key	binding
 \\[howm-view-filter]	Filter (by date, contents, etc.)
 \\[howm-view-actually-filter-by-contents]	Filter by contents
 \\[howm-view-actually-filter-by-keyword-in-contents]	Filter by keyword in contents
-\\[howm-view-grep-in-contents]	Search within results
+\\[howm-view-grep-in-result]	Search within results
 \\[howm-view-sort]	Sort (by date, summary line, etc.)
 \\[howm-view-sort-reverse]	Reverse order
 \\[howm-view-dired]	Invoke Dired-X
@@ -239,7 +239,7 @@ key	binding
 \\[howm-view-filter]	Filter (by date, contents, etc.)
 \\[howm-view-actually-filter-by-contents]	Filter by contents
 \\[howm-view-actually-filter-by-keyword-in-contents]	Filter by keyword in contents
-\\[howm-view-grep-in-contents]	Search within results
+\\[howm-view-grep-in-result]	Search within results
 \\[howm-view-sort]	Sort
 \\[howm-view-sort-reverse]	Reverse order
 \\[howm-view-dired]	Invoke Dired-X
@@ -279,7 +279,7 @@ key	binding
     (define-key m "f" 'howm-view-filter)
     (define-key m "F" 'howm-view-actually-filter-by-contents)
     (define-key m "K" 'howm-view-actually-filter-by-keyword-in-contents)
-    (define-key m "G" 'howm-view-grep-in-contents)
+    (define-key m "G" 'howm-view-grep-in-result)
     (define-key m "S" 'howm-view-sort)
     (define-key m "R" 'howm-view-sort-reverse)
     (define-key m "q" 'howm-view-kill-buffer)
@@ -637,7 +637,7 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
 
 (defun howm-view-grep-keyword-in-contents (&optional remove-p keyword)
   (interactive "P")
-  (howm-view-filter-by-keyword-general #'howm-view-grep-in-contents
+  (howm-view-filter-by-keyword-general #'howm-view-grep-in-result
                                        remove-p keyword))
 
 (defun howm-view-actually-filter-by-keyword-in-contents (&optional remove-p keyword)
@@ -705,16 +705,16 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
                               (min ,end (length item-list))))))
     (howm-view-filter-doit f)))
 
-;; keep misnamed functions that aren't really "filters" for backward compatibility
-(defalias 'howm-view-filter-by-contents 'howm-view-grep-in-contents)
-(defalias 'howm-view-filter-by-keyword-in-contents 'howm-view-grep-keyword-in-contents)
-
-(defun howm-view-grep-in-contents (&optional remove-p regexp)
-  ;; not "filter" but "search in result" actually for backward
-  ;; compatibility
+(defun howm-view-grep-in-result (&optional remove-p regexp)
+  "Search within current results using grep."
   (interactive "P")
   (howm-view-filter-by-contents-gen "Search in result (grep): "
                                     nil remove-p regexp))
+
+;; backward compatibility aliases
+(defalias 'howm-view-filter-by-contents 'howm-view-grep-in-result)
+(defalias 'howm-view-grep-in-contents 'howm-view-grep-in-result)
+(defalias 'howm-view-filter-by-keyword-in-contents 'howm-view-grep-keyword-in-contents)
 
 (defun howm-view-actually-filter-by-contents (&optional remove-p regexp)
   ;; just "filter" without modifying the items
@@ -1295,34 +1295,50 @@ B is items in REFERENCE-ITEM-LIST that do not match in case 1."
   (howm-view-search-folder-doit (apply #'howm-view-search-folder-internal
                                        args)))
 
-(defun howm-view-search-folder-internal (str folder
-                                             &optional name summarizer
-                                             fixed-p hilit-keywords)
-  ;; clean me. str-orig can be string or list of strings.
+(defun howm-search-execute (str folder &optional summarizer fixed-p
+                                        hilit-keywords)
+  "Execute a grep search and return (items privileged-item hilit-keywords).
+STR is the search string (or list of strings).
+FOLDER is the howm folder to search in.
+SUMMARIZER, FIXED-P are passed to `howm-view-search-folder-items'.
+HILIT-KEYWORDS, if non-nil, overrides the default highlight keywords."
   (let* ((str-orig str)
          (str-list (if (listp str-orig) str-orig (list str-orig)))
+         (str-principal (if (listp str-orig) (car str-orig) str-orig))
+         (items (howm-view-search-folder-items str-orig folder summarizer fixed-p))
+         (kw (or hilit-keywords
+                 (let ((r (if fixed-p
+                              (regexp-opt str-list)
+                            (mapconcat (lambda (x) (concat "\\(" x "\\)"))
+                                       str-list
+                                       "\\|"))))
+                   `((,r . howm-view-hilit-face)))))
+         (priv-item nil))
+    (let* ((resolved (and howm-search-privilege-resolver
+                          (funcall howm-search-privilege-resolver
+                                   str-principal)))
+           (f (expand-file-name (or resolved str-principal))))
+      (when (file-exists-p f)
+        (let ((fi (howm-make-item :page (howm-make-page:file f))))
+          (howm-view-item-set-privilege fi t)
+          (setq priv-item fi)
+          (setq items (cons fi items)))))
+    (list items priv-item kw)))
+
+(defun howm-view-search-folder-internal (str folder
+                                              &optional name summarizer
+                                              fixed-p hilit-keywords)
+  "Search FOLDER for STR and return (kw name items).
+This is a thin wrapper around `howm-search-execute'."
+  (let* ((str-orig str)
          (str-principal (if (listp str-orig) (car str-orig) str-orig)))
-    ;; rename str
-    (setq str str-principal)
-    (setq name (or name str))
+    (setq name (or name str-principal))
     (when howm-view-update-search-ring
-      (isearch-update-ring str (not fixed-p)))
-    (let* ((items (howm-view-search-folder-items str-orig
-                                                 folder summarizer fixed-p))
-           (kw (or hilit-keywords
-                   (let ((r (if fixed-p
-                                (regexp-opt str-list)
-                              (mapconcat (lambda (x) (concat "\\(" x "\\)"))
-                                         str-list
-                                         "\\|"))))
-                     `((,r . howm-view-hilit-face))))))
-      (let* ((resolved (and howm-search-privilege-resolver
-                          (funcall howm-search-privilege-resolver str)))
-             (f (expand-file-name (or resolved str))))
-        (when (file-exists-p f)
-          (let ((fi (howm-make-item :page (howm-make-page:file f))))
-            (howm-view-item-set-privilege fi t)
-            (setq items (cons fi items)))))
+      (isearch-update-ring str-principal (not fixed-p)))
+    (let* ((result (howm-search-execute str folder summarizer fixed-p
+                                        hilit-keywords))
+           (items (nth 0 result))
+           (kw (nth 2 result)))
       (list kw name items))))
 
 (defun howm-view-search-folder-doit (p)

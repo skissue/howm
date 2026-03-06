@@ -346,6 +346,89 @@ resolves to an existing file."
             (should (/= 0 (logand rank 8)))
             (should (/= 0 (logand rank 4)))))))))
 
+;; ── Phase 5: separation of concerns ─────────────────────────────
+
+(ert-deftest howm-test-search-execute-returns-triple ()
+  "howm-search-execute should return (items privileged-item hilit-keywords)."
+  (howm-test-with-fixtures howm-test-basic-fixtures
+    (let* ((folder (howm-search-path-folder))
+           (result (howm-search-execute "alpha" folder nil t)))
+      (should (listp result))
+      (should (= (length result) 3))
+      ;; items
+      (should (listp (nth 0 result)))
+      (should (> (length (nth 0 result)) 0))
+      ;; privileged-item should be nil (no file named "alpha" exists)
+      (should (null (nth 1 result)))
+      ;; hilit-keywords
+      (should (listp (nth 2 result))))))
+
+(ert-deftest howm-test-search-execute-privilege-item ()
+  "howm-search-execute should return a privileged item when the keyword
+resolves to an existing file."
+  (howm-test-with-fixtures
+      '(("target.txt" . "= Target\nBody.\n"))
+    (let* ((folder (howm-search-path-folder))
+           (target-path (expand-file-name "target.txt" howm-directory))
+           (result (howm-search-execute target-path folder nil t))
+           (items (nth 0 result))
+           (priv-item (nth 1 result)))
+      (should priv-item)
+      (should (howm-item-privilege priv-item))
+      ;; privileged item should also be in items list
+      (should (memq priv-item items)))))
+
+(ert-deftest howm-test-search-execute-hilit-keywords-fixed ()
+  "howm-search-execute with fixed-p should produce regexp-opt hilit keywords."
+  (howm-test-with-fixtures howm-test-basic-fixtures
+    (let* ((folder (howm-search-path-folder))
+           (result (howm-search-execute "alpha" folder nil t))
+           (kw (nth 2 result)))
+      ;; kw should be a list of (regexp . face) pairs
+      (should (consp (car kw)))
+      (should (eq (cdar kw) 'howm-view-hilit-face)))))
+
+(ert-deftest howm-test-search-folder-internal-uses-search-execute ()
+  "howm-view-search-folder-internal should return the same items as
+howm-search-execute, proving it delegates correctly."
+  (howm-test-with-fixtures howm-test-basic-fixtures
+    (let* ((folder (howm-search-path-folder))
+           (trio (howm-view-search-folder-internal "alpha" folder))
+           (exec-result (howm-search-execute "alpha" folder nil nil)))
+      ;; trio items = exec-result items
+      (should (equal (cl-caddr trio) (nth 0 exec-result)))
+      ;; trio kw = exec-result kw
+      (should (equal (car trio) (nth 2 exec-result))))))
+
+(ert-deftest howm-test-results-rank-returns-matched-and-sorted ()
+  "howm-results-rank should return (matched-tags . ranked-items)."
+  (howm-test-with-fixtures howm-test-basic-fixtures
+    (let* ((folder (howm-search-path-folder))
+           (items (howm-view-search-folder-items "alpha" folder nil t))
+           (result (howm-results-rank items "alpha")))
+      (should (consp result))
+      ;; matched tags
+      (should (listp (car result)))
+      ;; ranked items — same count as input
+      (should (= (length (cdr result)) (length items))))))
+
+(ert-deftest howm-test-results-rank-keyword-tag ()
+  "howm-results-rank should include 'keyword tag when <<< is found."
+  (howm-test-with-fixtures howm-test-basic-fixtures
+    (let* ((folder (howm-search-path-folder))
+           (items (howm-view-search-folder-items "alpha" folder nil t))
+           (result (howm-results-rank items "alpha"))
+           (matched (car result)))
+      (should (member 'keyword matched)))))
+
+(ert-deftest howm-test-grep-in-result-alias ()
+  "howm-view-grep-in-contents and howm-view-filter-by-contents should
+be aliases for howm-view-grep-in-result."
+  (should (eq (symbol-function 'howm-view-grep-in-contents)
+              'howm-view-grep-in-result))
+  (should (eq (symbol-function 'howm-view-filter-by-contents)
+              'howm-view-grep-in-result)))
+
 (provide 'howm-search-test)
 
 ;;; howm-search-test.el ends here
