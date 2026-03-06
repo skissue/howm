@@ -800,7 +800,8 @@ This variable is obsolete and may be removed in future.")
   :group 'howm-grep)
 (howm-defcustom-risky howm-view-grep-extended-option "-E"
   "*Grep option for extended regular expression."
-  :type 'string
+  :type '(radio (const :tag "None" nil)
+                string)
   :group 'howm-grep)
 (howm-defcustom-risky howm-view-grep-fixed-option "-F"
   "*Grep option to search fixed strings."
@@ -812,7 +813,8 @@ This variable is obsolete and may be removed in future.")
   :group 'howm-grep)
 (howm-defcustom-risky howm-view-grep-expr-option "-e"
   "*Grep option for pattern."
-  :type 'string
+  :type '(radio (const :tag "None" nil)
+                string)
   :group 'howm-grep)
 (howm-defcustom-risky howm-view-grep-file-stdin-option "-f -"
   "*Grep option for receiving patterns from standard input.
