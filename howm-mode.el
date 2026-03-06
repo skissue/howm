@@ -635,11 +635,13 @@ key	binding
     (when keyword
       (let ((key-reg (or comefrom-regexp
                          (howm-make-keyword-regexp1 keyword)))
-            (word-reg (format "\\<%s\\>"
-                              (if (stringp keyword)
-                                  (regexp-quote keyword)
-                                (regexp-opt keyword t))))
-            (wiki-reg (regexp-quote (howm-make-wiki-string keyword)))
+            (word-reg (and howm-list-prefer-word
+                          (format "\\<%s\\>"
+                                  (if (stringp keyword)
+                                      (regexp-quote keyword)
+                                    (regexp-opt keyword t)))))
+            (wiki-reg (and howm-list-prefer-wiki
+                          (regexp-quote (howm-make-wiki-string keyword))))
             (file-reg (and
                        (stringp keyword)
                        (let ((resolved
@@ -651,18 +653,14 @@ key	binding
                                   (expand-file-name
                                    (or resolved keyword)))))))
             (case-fold-search howm-keyword-case-fold-search))
-        (cl-labels ((check (tag flag reg &optional tag-when-multi-hits)
-                        (when flag
-                          (let ((r (howm-normalize-check item-list tag reg
-                                                         tag-when-multi-hits)))
-                            (setq matched (append (car r) matched))
-                            (setq item-list (cdr r))))))
-          ;; not efficient. should I do them at once?
-          (check 'word            howm-list-prefer-word word-reg)
-          (check 'wiki            howm-list-prefer-wiki wiki-reg)
-          (check 'related-keyword t howm-keyword-regexp)
-          (check 'keyword         t key-reg 'keyword-multi-hits)
-          (check 'file            file-reg file-reg))))
+        (let ((r (howm-normalize-single-pass
+                  item-list
+                  (list :key-reg key-reg
+                        :word-reg word-reg
+                        :wiki-reg wiki-reg
+                        :file-reg file-reg))))
+          (setq matched (car r))
+          (setq item-list (cdr r)))))
     (when (and (howm-list-title-p)
                (not no-list-title)
                (not (and (member 'file matched)
@@ -671,17 +669,55 @@ key	binding
             (howm-entitle-items (howm-list-title-regexp) item-list)))
     (cons matched (cons item-list entitled-item-list))))
 
-(defun howm-normalize-check (item-list tag reg tag-when-multi-hits)
-  (let* ((r (if (eq tag 'file)
-                (howm-view-lift-by-path-internal item-list reg)
-              (howm-view-lift-by-summary-internal item-list reg)))
-         (m (car r))
-         (item-list (cdr r))
-         (matched (cond ((and tag-when-multi-hits (eq m 'multi))
-                         (list tag-when-multi-hits tag))
-                        (m (list tag))
-                        (t nil))))
-    (cons matched item-list)))
+(cl-defun howm-normalize-rank-item (item &key key-reg word-reg wiki-reg file-reg)
+  "Compute an integer priority rank for ITEM.
+Returns a bitmask: file(16) + keyword(8) + related-keyword(4) + wiki(2) + word(1)."
+  (let ((summary (howm-item-summary item))
+        (rank 0))
+    (when (and word-reg (string-match word-reg summary))
+      (setq rank (logior rank 1)))
+    (when (and wiki-reg (string-match wiki-reg summary))
+      (setq rank (logior rank 2)))
+    (when (string-match howm-keyword-regexp summary)
+      (setq rank (logior rank 4)))
+    (when (and key-reg (string-match key-reg summary))
+      (setq rank (logior rank 8)))
+    (when (and file-reg
+               (string-match file-reg (howm-item-name item)))
+      (setq rank (logior rank 16)))
+    rank))
+
+(defun howm-normalize-single-pass (item-list keyword-args)
+  "Sort ITEM-LIST by composite priority key in a single stable sort.
+KEYWORD-ARGS is a plist with :key-reg :word-reg :wiki-reg :file-reg,
+passed through to `howm-normalize-rank-item'.
+Returns (MATCHED-TAGS . SORTED-ITEM-LIST)."
+  (let* ((ranks (mapcar (lambda (item)
+                          (cons item (apply #'howm-normalize-rank-item item keyword-args)))
+                        item-list))
+         (or-of-ranks (apply #'logior (mapcar #'cdr ranks)))
+         (sorted (mapcar #'car
+                         (cl-stable-sort ranks
+                                         (lambda (a b) (> (cdr a) (cdr b))))))
+         (matched nil)
+         (keyword-count 0))
+    ;; Derive matched tags from the union of all rank bits.
+    (when (/= 0 (logand or-of-ranks 1))
+      (push 'word matched))
+    (when (/= 0 (logand or-of-ranks 2))
+      (push 'wiki matched))
+    (when (/= 0 (logand or-of-ranks 4))
+      (push 'related-keyword matched))
+    (when (/= 0 (logand or-of-ranks 8))
+      ;; Count keyword matches to decide keyword-multi-hits.
+      (setq keyword-count (cl-count-if (lambda (pair) (/= 0 (logand (cdr pair) 8)))
+                                       ranks))
+      (push 'keyword matched)
+      (when (> keyword-count 1)
+        (push 'keyword-multi-hits matched)))
+    (when (/= 0 (logand or-of-ranks 16))
+      (push 'file matched))
+    (cons matched sorted)))
 
 (defun howm-make-keyword-string (keyword)
   (format howm-keyword-format keyword))
