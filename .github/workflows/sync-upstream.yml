@@ -1,0 +1,45 @@
+name: Sync from upstream
+
+on:
+  schedule:
+    - cron: "0 0 * * 1" # Every Monday at 00:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/kaorahi/howm.git
+          git fetch upstream master
+
+      - name: Check for new commits
+        id: check
+        run: |
+          if git diff --quiet HEAD..upstream/master; then
+            echo "No upstream changes."
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Upstream has new changes."
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Merge upstream
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge upstream/master
+
+      - name: Push
+        if: steps.check.outputs.has_changes == 'true'
+        run: git push
