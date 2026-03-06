@@ -397,8 +397,8 @@ If ORIG-ITEMS is nil, use the item list of the current buffer."
   (howm-simulate-todo-next-date nil orig-items))
 (defmacro howm-save-vertical-position (&rest body)
   (declare (indent 0))
-  (let ((gw (cl-gensym))
-        (gc (cl-gensym)))
+  (let ((gw (gensym))
+        (gc (gensym)))
     `(let ((,gw (line-number-at-pos (window-start) t))
            (,gc (line-number-at-pos nil t)))
        (prog1

@@ -26,8 +26,8 @@
 
 (defmacro howm-define-risky-command (risky orig)
   "Define a macro RISKY which is risky-version of ORIG."
-  (let* ((gsymbol (cl-gensym))
-         (gargs (cl-gensym))
+  (let* ((gsymbol (gensym))
+         (gargs (gensym))
          (docstring (format "Do `%s' and set risky-local-variable property."
                             orig)))
     `(defmacro ,risky
@@ -49,8 +49,8 @@
 ;; ;; This code is byte-compiled to old-style-backquotes. Sigh...
 ;; (defmacro howm-define-risky-command (risky orig)
 ;;   "Define a macro RISKY which is risky-version of ORIG."
-;;   (let* ((gsymbol (cl-gensym))
-;;          (gargs (cl-gensym))
+;;   (let* ((gsymbol (gensym))
+;;          (gargs (gensym))
 ;;          (docstring (format "Do `%s' and set risky-local-variable property."
 ;;                             orig)))
 ;;     `(progn

@@ -391,7 +391,7 @@ current timezone rule uniformly to avoid inconsistency."
 (defmacro howm-with-need (&rest body)
   "Execute BODY where (need xxx) exits from this form if xxx is nil."
   (declare (indent 0))
-  (let ((g (cl-gensym)))
+  (let ((g (gensym)))
     `(catch ',g
        (cl-labels ((need (x) (or x (throw ',g nil))))
          ,@body))))
@@ -443,7 +443,7 @@ examples:
  (howm-with-coding-system \\='(utf-8-unix . sjis-unix) ...)  ;; (read . write)
  (howm-with-coding-system nil ...)  ;; howm-process-coding-system is used."
   (declare (indent 1))
-  (let ((g (cl-gensym))
+  (let ((g (gensym))
         (cs (or coding-system 'howm-process-coding-system)))
     `(let* ((,g ,cs)
             (coding-system-for-read  (or (car-safe ,g) ,g))
