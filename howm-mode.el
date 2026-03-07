@@ -47,54 +47,66 @@ If it is a function, it is called to get template string with the argument <n>."
 (defvar howm-inhibit-title-file-match t
   "If non-nil, inhibit howm-list-title when search string matches file name")
 
-(defvar howm-default-key-table
-  '(
-    ;; ("key" func list-mode-p global-p)
-    ("r" howm-refresh)
-    ("l" howm-list-recent t t)
-    ("a" howm-list-all t t)
-    ("g" howm-list-grep t t)
-    ("s" howm-list-grep-fixed t t)
-    ("m" howm-list-migemo t t)
-    ("t" howm-list-todo t t)
-    ("y" howm-list-schedule t t)
-    ("b" howm-list-buffers t t)
-    ("x" howm-list-mark-ring t t)
-    ("o" howm-occur t t)
-    ("c" howm-create t t)
-    ("e" howm-remember t t)
-    ("," howm-menu t t)
+(defvar howm-view-command-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "l" #'howm-list-recent)
+    (define-key map "a" #'howm-list-all)
+    (define-key map "g" #'howm-list-grep)
+    (define-key map "s" #'howm-list-grep-fixed)
+    (define-key map "m" #'howm-list-migemo)
+    (define-key map "t" #'howm-list-todo)
+    (define-key map "y" #'howm-list-schedule)
+    (define-key map "b" #'howm-list-buffers)
+    (define-key map "x" #'howm-list-mark-ring)
+    (define-key map "o" #'howm-occur)
+    (define-key map "c" #'howm-create)
+    (define-key map "e" #'howm-remember)
+    (define-key map "," #'howm-menu)
     ;; "C-c ; ;" for org
     ;; https://github.com/kaorahi/howm/issues/38#issuecomment-2640020651
-    (";" howm-menu t t)
-    ("." howm-find-today nil t)
-    (":" howm-find-yesterday nil t)
-    ("A" howm-list-around)
-    ("h" howm-history nil t)
-    ("D" howm-dup)
-    ("i" howm-insert-keyword nil t)
-    ("d" howm-insert-date nil t)
-    ("T" howm-insert-dtime nil t)
-    ("K" howm-keyword-to-kill-ring nil t)
-    ("n" action-lock-goto-next-link)
-    ("p" action-lock-goto-previous-link)
-    ("Q" howm-kill-all t t)
-    (" " howm-toggle-buffer nil t)
-    ("N" howm-next-memo)
-    ("P" howm-previous-memo)
-    ("H" howm-first-memo)
-    ("L" howm-last-memo)
-    ("C" howm-create-here nil t)
-    ("I" howm-create-interactively nil t)
-    ("w" howm-random-walk nil t)
-    ("M" howm-open-named-file t t)
-    )
-  "List of (key function list-mode-p global-p).
-`howm-prefix' + this key is real stroke.
-If optional argument list-mode-p is non-nil,
-same key is also available in view mode.
-It is further registered globally if global-p is non-nil."
-  )
+    (define-key map ";" #'howm-menu)
+    (define-key map "Q" #'howm-kill-all)
+    (define-key map "M" #'howm-open-named-file)
+    map)
+  "Prefix keymap for commands available in view modes and globally.
+These 16 commands are accessible as bare keys in view-mode buffers
+and under `howm-prefix' everywhere.")
+
+(defvar howm-command-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map howm-view-command-map)
+    (define-key map "." #'howm-find-today)
+    (define-key map ":" #'howm-find-yesterday)
+    (define-key map "h" #'howm-history)
+    (define-key map "i" #'howm-insert-keyword)
+    (define-key map "d" #'howm-insert-date)
+    (define-key map "T" #'howm-insert-dtime)
+    (define-key map "K" #'howm-keyword-to-kill-ring)
+    (define-key map " " #'howm-toggle-buffer)
+    (define-key map "C" #'howm-create-here)
+    (define-key map "I" #'howm-create-interactively)
+    (define-key map "w" #'howm-random-walk)
+    map)
+  "Prefix keymap for commands available globally under `howm-prefix'.
+Inherits the 16 view commands from `howm-view-command-map' and adds
+11 global-only commands (27 total).")
+
+(defvar howm-mode-command-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map howm-command-map)
+    (define-key map "r" #'howm-refresh)
+    (define-key map "A" #'howm-list-around)
+    (define-key map "D" #'howm-dup)
+    (define-key map "n" #'action-lock-goto-next-link)
+    (define-key map "p" #'action-lock-goto-previous-link)
+    (define-key map "N" #'howm-next-memo)
+    (define-key map "P" #'howm-previous-memo)
+    (define-key map "H" #'howm-first-memo)
+    (define-key map "L" #'howm-last-memo)
+    map)
+  "Prefix keymap for commands available only in `howm-mode' buffers.
+Inherits all 27 commands from `howm-command-map' and adds 9
+howm-only commands (36 total).")
 
 (howm-defvar-risky howm-migemo-client nil
   "Command name of migemo-client.
@@ -260,12 +272,7 @@ When nil, only the default `file-exists-p' check is used.")
 
 (defvar howm-mode-map
   (let ((map (make-sparse-keymap)))
-    (mapc (lambda (entry)
-            (let ((k (car entry))
-                  (f (cadr entry)))
-              (define-key map (concat howm-prefix k) f)))
-          howm-default-key-table)
-    (define-key map "\C-x\C-s" #'howm-save-buffer)
+    (define-key map howm-prefix howm-mode-command-map)
     map)
   "Keymap for `howm-mode'.")
 
@@ -304,23 +311,15 @@ key	binding
       (howm-initialize-buffer)
     (howm-restore-buffer)))
 
-(defun howm-set-keymap ()
-  (mapc (lambda (entry)
-          (let* ((k (car entry))
-                 (f (cadr entry))
-                 (list-mode-p (cl-caddr entry))
-                 (global-p (cl-cadddr entry))
-                 (pk (concat howm-prefix k)))
-            (when list-mode-p
-              (mapc (lambda (m)
-                      (define-key m k f)
-                      (define-key m pk f))
-                    (list howm-view-summary-mode-map
-                          howm-view-contents-mode-map)))
-            (when global-p
-              (define-key global-map pk f))))
-        howm-default-key-table))
-(howm-set-keymap)
+(defun howm-view-install-bare-keys (mode-map)
+  "Bind every key in `howm-view-command-map' as a bare key in MODE-MAP."
+  (map-keymap (lambda (event def)
+                (define-key mode-map (vector event) def))
+              howm-view-command-map))
+
+(define-key global-map howm-prefix howm-command-map)
+(howm-view-install-bare-keys howm-view-summary-mode-map)
+(howm-view-install-bare-keys howm-view-contents-mode-map)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Main functions

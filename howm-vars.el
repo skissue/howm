@@ -883,7 +883,10 @@ counts are within this number."
   :group 'howm)
 
 (defvar howm-prefix "\C-c,"
-  "Howm commands are invoked by this prefix + some keys.")
+  "Prefix key for howm commands.
+Set this before loading howm to change the prefix.
+At load time, `howm-command-map' is bound globally under this prefix,
+and `howm-mode-command-map' is bound in `howm-mode' under this prefix.")
 
 (defcustom howm-random-walk-wait 2
   "*Seconds of wait in `howm-random-walk'."
