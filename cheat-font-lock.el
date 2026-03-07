@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; -*-
+;;; -*- lexical-binding: t; -*-
 ;;; cheat-font-lock.el --- modify font-lock-keywords
 ;;; Copyright (C) 2002, 2003, 2004, 2005-2026
 ;;;   HIRAOKA Kazuyuki <kakkokakko@gmail.com>
@@ -35,7 +35,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun cheat-font-lock-mode (&optional dummy)
+(defun cheat-font-lock-mode (&optional _dummy)
   ;; keep dummy arg for backward compatibility with outside code
   "Just enable font-lock-mode."
   ;; font-lock-defaults seems necessary for "C-c , a" (howm-list-all) [2025-02-07]
@@ -44,7 +44,7 @@
   (font-lock-mode 1)
   (font-lock-set-defaults))
 
-(defun cheat-font-lock-fontify (&optional dummy)
+(defun cheat-font-lock-fontify (&optional _dummy)
   ;; keep dummy arg for backward compatibility with outside code
   (font-lock-flush)
   (font-lock-ensure))

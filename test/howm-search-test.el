@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; -*-
+;;; -*- lexical-binding: t; -*-
 ;;; howm-search-test.el --- Integration tests for howm search & normalize
 ;;; Commentary:
 ;;

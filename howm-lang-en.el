@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; -*-
+;;; -*- lexical-binding: t; -*-
 ;;; howm-lang-en.el --- Wiki-like note-taking tool
 ;;; Copyright (C) 2005-2026
 ;;;   HIRAOKA Kazuyuki <kakkokakko@gmail.com>

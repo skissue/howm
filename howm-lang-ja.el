@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; -*-
+;;; -*- lexical-binding: t; -*-
 ;;; howm-lang-ja.el --- Wiki-like note-taking tool
 ;;; -*- Coding: utf-8 -*-
 ;;; Copyright (C) 2005-2026

@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; -*-
+;;; -*- lexical-binding: t; -*-
 ;;; howm-backend.el --- Wiki-like note-taking tool
 ;;; Copyright (C) 2005-2026
 ;;;   HIRAOKA Kazuyuki <kakkokakko@gmail.com>
@@ -43,7 +43,7 @@
 ;;   * keys_in(page)
 ;;     * This method is optional.
 
-(defun howm-folder-type (folder &rest r)
+(defun howm-folder-type (folder &rest _r)
   (cond ((stringp folder) ':dir)
         ((eq folder 'buf) ':buf)
         ((listp folder) (car folder))))
@@ -151,13 +151,13 @@ still ignore the dot files inside it."
 (defun howm-folder-pages:pages (folder)
   (cdr folder))
 
-(defun howm-folder-items:pages (folder &optional recursive-p)
+(defun howm-folder-items:pages (folder &optional _recursive-p)
   (let ((summary ""))
     (mapcar (lambda (p) (howm-make-item :page p :summary summary))
             (howm-folder-pages:pages folder))))
 
 ;; should be removed, or renamed at least
-(defun howm-folder-files:pages (folder &optional exclusion-checker)
+(defun howm-folder-files:pages (folder &optional _exclusion-checker)
   (remove nil (mapcar #'howm-page-name (howm-folder-pages:pages folder))))
 
 (defun howm-folder-grep-internal:pages (folder pattern &optional fixed-p)
@@ -265,7 +265,7 @@ still ignore the dot files inside it."
 (defun howm-make-folder:files (files)
   (cons ':files files))
 
-(defun howm-folder-items:files (folder &optional recursive-p)
+(defun howm-folder-items:files (folder &optional _recursive-p)
   (let ((summary ""))
     (mapcar (lambda (f)
               (howm-make-item :page (howm-make-page:file f) :summary summary))
@@ -275,7 +275,7 @@ still ignore the dot files inside it."
   (howm-grep-items pattern (howm-folder-files:files folder) fixed-p))
 
 ;; should be removed, or renamed at least
-(defun howm-folder-files:files (folder &optional exclusion-checker)
+(defun howm-folder-files:files (folder &optional _exclusion-checker)
   (cdr folder))
 
 ;;;
@@ -318,12 +318,12 @@ ssearch: ")
 (defun howm-make-folder:namazu (index-dir)
   (cons ':namazu (expand-file-name index-dir)))
 
-(defun howm-folder-items:namazu (folder &optional recursive-p)
+(defun howm-folder-items:namazu (folder &optional _recursive-p)
   (let ((files (howm-folder-files:namazu folder)))
     (howm-folder-items:files (howm-make-folder:files files))))
 
 ;; should be removed, or renamed at least
-(defun howm-folder-files:namazu (folder &optional exclusion-checker)
+(defun howm-folder-files:namazu (folder &optional _exclusion-checker)
   (with-temp-buffer
     (insert-file-contents (expand-file-name "NMZ.r"
                                             (cdr folder)))
@@ -582,7 +582,7 @@ STR can be list of strings. They are regarded as \"or\" pattern of all elements.
 ;;   * load
 ;;   * save(text)
 
-(defun howm-page-type (page &rest r)
+(defun howm-page-type (page &rest _r)
   (cond ((stringp page) ':file)
         ((bufferp page) ':buf)
         ((null page) ':nil)
@@ -701,7 +701,7 @@ STR can be list of strings. They are regarded as \"or\" pattern of all elements.
 (defconst howm-dummy-mtime (encode-time 0 0 9 1 1 1970)
   "Dummy mtime which has no meaning.")
 
-(defun howm-page-mtime:buf (page)
+(defun howm-page-mtime:buf (_page)
   howm-dummy-mtime)
 
 (defun howm-page-open:buf (page)
@@ -711,7 +711,7 @@ STR can be list of strings. They are regarded as \"or\" pattern of all elements.
   (when (not (howm-buffer-killed-p page))
     (howm-insert-buffer-contents page)))
 
-(defun howm-page-viewer:buf (page)
+(defun howm-page-viewer:buf (_page)
   nil)
 ;;   (howm-make-viewer:func #'switch-to-buffer))
 
@@ -726,24 +726,24 @@ STR can be list of strings. They are regarded as \"or\" pattern of all elements.
 (defun howm-make-page:nil ()
   nil)
 
-(defun howm-page-name:nil (page)
+(defun howm-page-name:nil (_page)
   "")
 
-(defun howm-page-mtime:nil (page)
+(defun howm-page-mtime:nil (_page)
   howm-dummy-mtime)
 
-(defun howm-page-open:nil (page)
+(defun howm-page-open:nil (_page)
   "Do nothing."
   nil)
 
-(defun howm-page-insert:nil (page)
+(defun howm-page-insert:nil (_page)
   "Do nothing."
   nil)
 
-(defun howm-page-viewer:nil (page)
+(defun howm-page-viewer:nil (_page)
   nil)
 
-(defun howm-page-set-configuration:nil (page)
+(defun howm-page-set-configuration:nil (_page)
   "Do nothing."
   nil)
 
@@ -767,7 +767,7 @@ STR can be list of strings. They are regarded as \"or\" pattern of all elements.
 (defun howm-page-insert:rot13file (page)
   (yarot13-insert-file-contents (howm-page-name page)))
 
-(defun howm-page-viewer:rot13file (page)
+(defun howm-page-viewer:rot13file (_page)
   nil)
 
 (defun howm-page-set-configuration:rot13file (page)
@@ -813,7 +813,7 @@ STR can be list of strings. They are regarded as \"or\" pattern of all elements.
 ;;   (previewer must return a string).
 ;; "str"   ==> (format "str" page) is externally executed on shell.
 
-(defun howm-viewer-type (viewer &rest r)
+(defun howm-viewer-type (viewer &rest _r)
   (cond ((stringp viewer)   ':str)
         ((functionp viewer) ':func0)
         ((listp viewer)     ':func)))

@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; -*-
+;;; -*- lexical-binding: t; -*-
 ;;; howm-reminder.el --- Wiki-like note-taking tool
 ;;; Copyright (C) 2002, 2003, 2004, 2005-2026
 ;;;   HIRAOKA Kazuyuki <kakkokakko@gmail.com>
@@ -573,20 +573,20 @@ Return true if E1 has higher priority than E2."
 (defun howm-todo-relative-late (late laziness default-laziness)
   (/ late (float (or laziness default-laziness))))
 
-(defun howm-todo-priority-normal (late lz item)
+(defun howm-todo-priority-normal (late lz _item)
   (let ((r (howm-todo-relative-late late lz
                                     howm-todo-priority-normal-laziness)))
     (cond ((< r 0) (+ r howm-todo-priority-normal-bottom))
           (t (- r)))))
 
-(defun howm-todo-priority-todo (late lz item)
+(defun howm-todo-priority-todo (late lz _item)
   (let ((r (howm-todo-relative-late late lz
                                     howm-todo-priority-todo-laziness))
         (c (- howm-todo-priority-todo-init)))
     (cond ((< r 0) (+ r howm-todo-priority-todo-bottom))
           (t (* c (- r 1))))))
 
-(defun howm-todo-priority-defer (late lz item)
+(defun howm-todo-priority-defer (late lz _item)
   (let* ((r (howm-todo-relative-late late lz
                                      howm-todo-priority-defer-laziness))
          (p howm-todo-priority-defer-peak)
@@ -617,7 +617,7 @@ Return true if E1 has higher priority than E2."
       (howm-todo-priority-deadline-1 late lz item)
     (howm-todo-priority-deadline-2 late lz item)))
 
-(defun howm-todo-priority-deadline-1 (late lz item)
+(defun howm-todo-priority-deadline-1 (late lz _item)
   (let ((r (howm-todo-relative-late late lz
                                     howm-todo-priority-deadline-laziness))
         (c (- howm-todo-priority-deadline-init))
@@ -630,7 +630,7 @@ Return true if E1 has higher priority than E2."
           ((< r -1) (+ bot r))
           (t (* c r)))))
 
-(defun howm-todo-priority-deadline-2 (late lz item)
+(defun howm-todo-priority-deadline-2 (late lz _item)
   "This function may be obsolete in future.
 `howm-todo-priority-deadline-1' will be used instead."
   (let ((r (howm-todo-relative-late late lz
@@ -645,7 +645,7 @@ Return true if E1 has higher priority than E2."
       (howm-todo-priority-schedule-1 late lz item)
     (howm-todo-priority-schedule-2 late lz item)))
 
-(defun howm-todo-priority-schedule-1 (late lz item)
+(defun howm-todo-priority-schedule-1 (late lz _item)
   (let ((lazy (or lz howm-todo-priority-schedule-laziness))
         (from (howm-reminder-schedule-interval-from))
         (to   (howm-reminder-schedule-interval-to))
@@ -655,7 +655,7 @@ Return true if E1 has higher priority than E2."
           ((< late (+ from lazy)) (+ top late))
           (t (+ bot late)))))
 
-(defun howm-todo-priority-schedule-2 (late lz item)
+(defun howm-todo-priority-schedule-2 (late lz _item)
   "This function may be obsolete in future.
 `howm-todo-priority-schedule-1' will be used instead."
   (let ((r (howm-todo-relative-late late lz
@@ -663,10 +663,10 @@ Return true if E1 has higher priority than E2."
     (cond ((> r 0) (+ r howm-todo-priority-schedule-bottom))
           (t r))))
 
-(defun howm-todo-priority-done (late lz item)
+(defun howm-todo-priority-done (late _lz _item)
   (+ late howm-todo-priority-done-bottom))
 
-(defun howm-todo-priority-unknown (late lz item)
+(defun howm-todo-priority-unknown (late _lz _item)
   (+ late howm-todo-priority-unknown-top))
 
 (defun howm-encode-day (&optional d m y)
@@ -787,10 +787,10 @@ When D is t, the beginning of today is encoded."
           "$"))
 
 (defun howm-action-lock-forward-invoke (form-reg cursor-reg)
-  (howm-modify-in-background (lambda (&rest dummy)
-                               ;; open the target file
-                               ;; and go to the corresponding line
-                               (howm-action-lock-forward-open))
+  (howm-modify-in-background (lambda (&rest _dummy)
+                                  ;; open the target file
+                                  ;; and go to the corresponding line
+                                  (howm-action-lock-forward-open))
                              (lambda (form-reg cursor-reg)
                                (howm-action-lock-forward-modify-current-line
                                 form-reg cursor-reg))
@@ -892,8 +892,8 @@ When D is t, the beginning of today is encoded."
                              (< (cadr (howm-reminder-parse item)) 0))
                            (howm-reminder-search "!"))))
     (mapc (lambda (item)
-            (howm-modify-in-background (lambda (item dummy)
-                                         (howm-view-open-item item))
+            (howm-modify-in-background (lambda (item _dummy)
+                                                      (howm-view-open-item item))
                                        #'howm-extend-deadline-here
                                        nil nil item days))
           hit)
@@ -924,7 +924,7 @@ When D is t, the beginning of today is encoded."
 ;; customize
 
 (defun howm-define-reminder (letter priority-func face schedule todo
-                                    &optional reminder)
+                                     &optional _reminder)
   "Define reminder type LETTER whose priority is determined by PRIORITY-FUNC.
 It appears with FACE in schedule list when SCHEDULE is non-nil, and in
 todo list when TODO is non-nil.  It also appears in menu if SCHEDULE

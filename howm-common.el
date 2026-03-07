@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; -*-
+;;; -*- lexical-binding: t; -*-
 ;;; howm-common.el --- Wiki-like note-taking tool
 ;;; Copyright (C) 2002, 2003, 2004, 2005-2026
 ;;;   HIRAOKA Kazuyuki <kakkokakko@gmail.com>
@@ -156,7 +156,7 @@ STRING should be given if the last search was by `string-match' on STRING."
     (end-of-line)
     (point)))
 
-(defun howm-inhibit-warning-in-compilation (&rest dummy)
+(defun howm-inhibit-warning-in-compilation (&rest _dummy)
   (error "This is dummy function to inhibit warning in compilation."))
 
 ;; (defvar howm-reminder-quick-check-key ";")

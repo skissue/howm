@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; -*-
+;;; -*- lexical-binding: t; -*-
 ;;; howm-view.el --- Wiki-like note-taking tool
 ;;; Copyright (C) 2002, 2003, 2004, 2005-2026
 ;;;   HIRAOKA Kazuyuki <kakkokakko@gmail.com>
@@ -488,7 +488,7 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
     ;; (cf.) snap://Info-mode/elisp#Positions
     (length str)))
 
-(defun howm-view-contents-item-sub (item page place header viewer c)
+(defun howm-view-contents-item-sub (item page place _header viewer c)
   (with-temp-buffer
     (let (b e h)
       (if viewer
@@ -748,7 +748,7 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
 ;;   (interactive "s(Reject) Search in result (grep): ")
   (let ((howm-v-r-b-c-regexp regexp))
     (howm-view-sort/filter-doit
-     (lambda (item-list switch)
+     (lambda (item-list _switch)
        (howm-filter-items-by-contents item-list howm-v-r-b-c-regexp t)))))
 
 (defun howm-view-sort/filter-doit (proc &optional switch)
@@ -763,7 +763,7 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
 
 ;; For backward compatibility with howmoney. Don't use this.
 (defun howm-view-filter-general (pred)
-  (howm-view-filter-doit (lambda (item-list dummy)
+  (howm-view-filter-doit (lambda (item-list _dummy)
                            (cl-remove-if-not pred item-list))))
 ;; (defun howm-view-filter-general (pred &optional remove-p with-index)
 ;;   (let* ((item-list (howm-view-item-list))
@@ -979,7 +979,7 @@ to see file names."
 (defvar howm-entitle-items-style2-max-length 20)
 (defvar howm-entitle-items-style2-format "%-13s | %s") ;; for title and summary
 (defvar howm-entitle-items-style2-title-line nil) ;; independent title line?
-(defun howm-entitle-items-style2 (title-regexp item-list)
+(defun howm-entitle-items-style2 (_title-regexp item-list)
   "Put title before summary."
   ;; fix me: howm-item-place is not set for howm-list-all
   (let ((last-title ""))
@@ -1029,7 +1029,7 @@ When place (see `howm-item-place') is specified, ITEM has at most one title.
 Otherwise, ITEM can have two or more titles."
   (howm-item-with-temp-buffer
    item
-   (lambda (i)
+   (lambda (_i)
      (let ((titles nil))
        (goto-char (point-min))
        (while (re-search-forward (howm-list-title-regexp) nil t)
@@ -1047,7 +1047,7 @@ Otherwise, ITEM can have two or more titles."
   "List of beginning-place and end-place of paragraph to which ITEM belongs."
   (howm-item-with-temp-buffer
    item
-   (lambda (i)
+   (lambda (_i)
      (let ((r (list (point-min) (point-max))))
        (widen)
        (list (progn
@@ -1347,7 +1347,7 @@ This is a thin wrapper around `howm-search-execute'."
 (defun howm-view-search-folder-items (str folder &optional summarizer fixed-p)
   (let ((found (howm-folder-grep folder str fixed-p))
         (summarizer (or summarizer
-                        (lambda (file place content)
+                        (lambda (_file _place content)
                           (string-match "^ *\\(.*\\)" content)
                           (match-string-no-properties 1 content)))))
     (mapc (lambda (i)
@@ -1431,7 +1431,7 @@ which simply calls howm-sort-items-by-NAME."
 (defalias 'howm-view-sort-by-reverse-internal 'howm-sort-items-by-reverse)
 
 (defun howm-sort-items-by-random (item-list &optional reverse-p)
-  (howm-sort-items #'(lambda (dummy) (random)) #'< item-list reverse-p))
+  (howm-sort-items #'(lambda (_dummy) (random)) #'< item-list reverse-p))
 
 (defun howm-sort-items-by-name (item-list &optional reverse-p)
   (howm-sort-items #'howm-view-item-basename #'string< item-list reverse-p))
@@ -1479,7 +1479,7 @@ which simply calls howm-sort-items-by-NAME."
                    #'howm-view-string>
                    item-list reverse-p))
 
-(defun howm-sort-items-by-reverse (item-list &optional dummy)
+(defun howm-sort-items-by-reverse (item-list &optional _dummy)
   (reverse item-list))
 
 ;;; lift (move matched items to the top)
@@ -1576,7 +1576,7 @@ matched can be nil, single, or multi."
 (howm-defvar-risky howm-view-dired-ls-options '("-l"))
 
 (when (not (fboundp 'dired-virtual))
-  (defun dired-virtual (dir)
+  (defun dired-virtual (_dir)
     (howm-inhibit-warning-in-compilation)))
 
 (defun howm-view-dired ()

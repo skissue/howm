@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; -*-
+;;; -*- lexical-binding: t; -*-
 ;;; howm-mkmenu.el --- Wiki-like note-taking tool
 ;;; Copyright (C) 2005-2026
 ;;;   HIRAOKA Kazuyuki <kakkokakko@gmail.com>
@@ -59,9 +59,9 @@
               (progn
                 (set-buffer-file-coding-system dest-coding)
                 (howm-mkmenu-insert
-                 (";;; -*- lexical-binding: nil; Coding: %s -*-" dest-coding)))
+                 (";;; -*- lexical-binding: t; Coding: %s -*-" dest-coding)))
             (howm-mkmenu-insert
-             (";;; -*- lexical-binding: nil; -*-")))
+             (";;; -*- lexical-binding: t; -*-")))
           (howm-mkmenu-insert
             (";;; automatically generated from %s" src)
             (";;; by %s.\n" (file-name-nondirectory load-file-name))

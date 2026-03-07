@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; -*-
+;;; -*- lexical-binding: t; -*-
 ;;; howm-mode.el --- Wiki-like note-taking tool
 ;;; Copyright (C) 2002, 2003, 2004, 2005-2026
 ;;;   HIRAOKA Kazuyuki <kakkokakko@gmail.com>
@@ -968,7 +968,7 @@ is necessary.")
   (insert (cdr (assoc 'date arg))))
 (defun howm-template-previous-file (arg)
   (insert (cdr (assoc 'file arg))))
-(defun howm-template-cursor (arg)) ;; do nothing
+(defun howm-template-cursor (_arg)) ;; do nothing
 
 (defun howm-dup ()
   (interactive)
@@ -1215,7 +1215,7 @@ KEYWORD itself is always at the head of the returneded list.
                          (car r))))
          (keyword-matched (member 'keyword matched))
          (keyword-matched-multi (member 'keyword-multi-hits matched))
-         (file-matched (member 'file matched))
+         (_file-matched (member 'file matched))
          (title (howm-make-keyword-string keyword)))
     ;; main processing (clean me!) [2003-12-01]
     (cond

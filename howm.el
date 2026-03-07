@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; -*-
+;;; -*- lexical-binding: t; -*-
 ;;; howm.el --- Wiki-like note-taking tool
 ;;; howm.el.  Generated from howm.el.in by configure.
 

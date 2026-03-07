@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; Coding: utf-8-unix -*-
+;;; -*- lexical-binding: t; Coding: utf-8-unix -*-
 ;;; howm-menu.el --- Wiki-like note-taking tool
 ;;; Copyright (C) 2002, 2003, 2004, 2005-2026
 ;;;   HIRAOKA Kazuyuki <kakkokakko@gmail.com>
@@ -491,7 +491,7 @@ When this is nil, delete-region is used instead, and bug appears.")
           (action-lock-goto-next-link))
         (let ((action (action-lock-get-action)))
           (if (null action)
-              (lambda (arg) (interactive "P") nil)
+              (lambda (_arg) (interactive "P") nil)
             (progn
               (rplacd (assoc key howm-menu-shortcut-assoc)
                       action)
@@ -761,10 +761,10 @@ ITEM-LIST is list of items which should be shown."
   ;; Bug: (length howm-recent-menu) can be smaller than NUM
   ;; when empty files exist.
   (let* ((randomp (eq evaluator t))
-         (summarizer #'(lambda (file line content) content))
+         (summarizer #'(lambda (_file _line content) content))
          ;; Unique name is needed for dynamic binding. Sigh...
          (h-r-m-evaluator (if randomp
-                              (lambda (f) (number-to-string (random)))
+                              (lambda (_f) (number-to-string (random)))
                             (or evaluator #'howm-view-mtime)))
          (sorted (howm-sort (lambda (f) (funcall h-r-m-evaluator f))
                             #'howm-view-string>
@@ -915,7 +915,7 @@ If you don't like misc. category, try
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; generate initial menu
 
-(defun howm-menu-initialize-skel (&optional dummy)
+(defun howm-menu-initialize-skel (&optional _dummy)
   (let ((menu-name (howm-get-symbol nil "howm-menu-" howm-menu-lang)))
     (require menu-name)
     (howm-menu-copy-skel (symbol-value menu-name))

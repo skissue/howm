@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; -*-
+;;; -*- lexical-binding: t; -*-
 ;;; riffle.el --- template of list browser with immediate preview
 ;;; Copyright (C) 2004, 2005-2026
 ;;;   HIRAOKA Kazuyuki <kakkokakko@gmail.com>
@@ -28,6 +28,8 @@
 (require 'cl-lib)
 (require 'gfunc)
 (require 'howm-common)
+
+(defvar iigrep-show-what)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; customize
@@ -131,7 +133,7 @@ even if you delete other windows explicitly."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; generic function
 
-(defun riffle-type (&rest r)
+(defun riffle-type (&rest _r)
   riffle-type)
 (defvar riffle-dispatchers (list #'riffle-type))
 (put 'riffle-dispatchers 'risky-local-variable t)
@@ -184,9 +186,9 @@ even if you delete other windows explicitly."
 (defun riffle-initialize-frame ()
   (let* ((name (cdr (assoc 'name riffle-frame-alist)))
          (selected (and name
-                        (condition-case err
-                            (progn (select-frame-by-name name) t)
-                          (error nil)))))
+                        (condition-case _err
+                                                     (progn (select-frame-by-name name) t)
+                                                   (error nil)))))
     (unless selected
       (select-frame (make-frame riffle-frame-alist)))))
 (defun riffle-initialize-tab ()
@@ -253,7 +255,7 @@ This function returns effective value of ITEM-LIST."
         (riffle-summary-subr name item-list))
       item-list)))
 
-(defun riffle-summary-subr (name item-list)
+(defun riffle-summary-subr (_name item-list)
   (riffle-summary-set-mode)
   (riffle-summary-show item-list)
   (unless riffle-keep-window
@@ -651,7 +653,7 @@ snap://Info-mode/emacs#File Variables
 (defvar riffle-sample-contents-name "sampleC:%s")
 (defvar riffle-sample-cursor-point 3)
 
-(defun riffle-home:sample (item)
+(defun riffle-home:sample (_item)
   riffle-sample-cursor-point)
 (defun riffle-summary-item:sample (item)
   (car item))

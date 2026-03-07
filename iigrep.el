@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; -*-
+;;; -*- lexical-binding: t; -*-
 ;;; iigrep.el - incremental interactive grep
 ;;; Copyright (C) 2004, 2005-2026
 ;;;   HIRAOKA Kazuyuki <kakkokakko@gmail.com>
@@ -121,7 +121,7 @@
       iigrep-default-show-what
     (read-from-minibuffer (iigrep-prompt))))
 
-(defun iigrep-command-for-pattern-on-dir (dir)
+(defun iigrep-command-for-pattern-on-dir (_dir)
   (lambda (pattern)
     (list iigrep-command iigrep-option pattern
           iigrep-recursive-option (expand-file-name "."))))
@@ -202,7 +202,7 @@
 
 ;; In the minibuffer...
 
-(defun iigrep-update (&rest dummy)
+(defun iigrep-update (&rest _dummy)
   (let ((pattern (and (iigrep-target-minibuffer-p)
                       (minibuffer-contents-no-properties))))
     (when pattern
@@ -307,13 +307,13 @@ This value is also used for identification of iigrep processes.")
   (let ((buffer-read-only nil))
     (erase-buffer)))
 
-(defun iigrep-exceed-limit (p)
+(defun iigrep-exceed-limit (_p)
   (iigrep-kill-process)
   (iigrep-append-output "\nSize limit exceeded."))
 
 (defvar *iigrep-post-sentinel* nil)
 
-(defun iigrep-sentinel (proc msg)
+(defun iigrep-sentinel (proc _msg)
   (let ((stat (process-status proc))
         (buf (iigrep-buffer nil t)))
     (when (and buf (member stat '(exit signal)))
@@ -378,6 +378,9 @@ This value is also used for identification of iigrep processes.")
   (iigrep-with-converter #'iigrep-migemo-converter "migemo: "
     (iigrep dir)))
 
+(defvar migemo-process)
+(defvar migemo-options)
+
 (defvar iigrep-migemo-process nil)
 ;; (defvar iigrep-migemo-options '("-q" "--emacs" "--nonewline")  ;; for GNU grep
 (defvar iigrep-migemo-options '("-q")
@@ -441,6 +444,6 @@ Use \\='(\"-S\" \"migemo\" \"-t\" \"egrep\") for the original migemo.")
 ;; key binding
 
 ;; backward compatibility for my old .emacs
-(defun iigrep-define-key-for (command &optional force map))
+(defun iigrep-define-key-for (_command &optional _force _map))
 
 ;;; iigrep.el ends here

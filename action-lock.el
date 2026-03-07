@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; -*-
+;;; -*- lexical-binding: t; -*-
 ;;; action-lock.el --- invoke magic action by RET key on spell strings
 
 ;; Copyright (C) 2002, 2003, 2004, 2005-2026

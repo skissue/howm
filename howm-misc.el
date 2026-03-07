@@ -1,4 +1,4 @@
-;;; -*- lexical-binding: nil; -*-
+;;; -*- lexical-binding: t; -*-
 ;;; howm-misc.el --- Wiki-like note-taking tool
 ;;; Copyright (C) 2002, 2003, 2004, 2005-2026
 ;;;   HIRAOKA Kazuyuki <kakkokakko@gmail.com>
@@ -883,7 +883,7 @@ When DOTS-STR is non-nil, it is used instead of \"...\"."
 ;; xyzzy doesn't have eval-after-load.
 ;; It will be useless anyway.
 (when (not (fboundp 'eval-after-load))
-  (defun eval-after-load (file form)
+  (defun eval-after-load (_file _form)
     nil))
 
 ;; xemacs canna doesn't use minor-mode. [2004-01-30]
@@ -941,19 +941,19 @@ When DOTS-STR is non-nil, it is used instead of \"...\"."
   (setq howm-view-title-regexp-grep 'sorry-not-yet)
   (setq howm-use-color nil)
   (setq howm-menu-top nil)
-  (define-advice howm-exclude-p (:around (orig-fun filename) change-log)
+  (define-advice howm-exclude-p (:around (_orig-fun filename) change-log)
           (not (cl-find-if (lambda (dir)
                              (string= (howm-file-name)
                                       (file-relative-name filename dir)))
                            (howm-search-path))))
-  (define-advice howm-create-file-with-title (:around (orig-fun title) change-log)
+  (define-advice howm-create-file-with-title (:around (_orig-fun title) change-log)
     (howm-create-file)
     (when (string-match howm-keyword-regexp title)
       (setq title (match-string-no-properties howm-keyword-regexp-pos
                                               title)))
     (insert title))
   (define-advice howm-create-file
-      (:around (orig-fun title &optional keep-cursor-p) change-log)
+      (:around (_orig-fun _title &optional _keep-cursor-p) change-log)
     (let* ((default (howm-file-name))
            (file (expand-file-name default howm-directory))
            (dir (file-name-directory file))
@@ -980,6 +980,8 @@ When DOTS-STR is non-nil, it is used instead of \"...\"."
          (title (howm-title-at-current-point nil
                                              title-regexp title-regexp-pos)))
     (howm-create-file-with-title title)))
+
+(defvar org-font-lock-keywords)
 
 (define-minor-mode howm-org-font-lock-minor-mode
   ;; copied from https://github.com/kaorahi/howm/issues/29#issuecomment-2625076294
