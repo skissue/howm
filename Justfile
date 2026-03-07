@@ -17,8 +17,7 @@ test-ert:
 
 # Byte-compile all .el files to .elc
 byte-compile:
-    {{ emacs }} --batch -L . \
-        --eval '(dolist (f (split-string "{{ el_files }}")) (byte-compile-file f))'
+    {{ emacs }} --batch -L . -f batch-byte-compile {{ el_files }}
 
 # Regenerate howm-menu-{en,fr,ja}.el from their text templates
 mkmenu:
