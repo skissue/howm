@@ -27,3 +27,7 @@ mkmenu:
 # Remove all byte-compiled .elc files
 clean:
     rm -f *.elc
+
+# Load all files into the running Emacs daemon
+load:
+    emacsclient --eval "(dolist (f (split-string \"{{ el_files }}\")) (load (expand-file-name f \"{{ justfile_directory() }}\")))"
