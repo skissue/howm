@@ -258,6 +258,17 @@ When nil, only the default `file-exists-p' check is used.")
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Definitions
 
+(defvar howm-mode-map
+  (let ((map (make-sparse-keymap)))
+    (mapc (lambda (entry)
+            (let ((k (car entry))
+                  (f (cadr entry)))
+              (define-key map (concat howm-prefix k) f)))
+          howm-default-key-table)
+    (define-key map "\C-x\C-s" #'howm-save-buffer)
+    map)
+  "Keymap for `howm-mode'.")
+
 (define-minor-mode howm-mode
   "Toggle Howm mode.
 
@@ -289,11 +300,6 @@ key	binding
 "
   :init-value nil ;; default = off
   :lighter howm-lighter ;; mode-line
-  :keymap (mapcar (lambda (entry)
-                    (let ((k (car entry))
-                          (f (cadr entry)))
-                      (cons (concat howm-prefix k) f)))
-                  howm-default-key-table)
   (if howm-mode
       (howm-initialize-buffer)
     (howm-restore-buffer)))
@@ -305,7 +311,6 @@ key	binding
                  (list-mode-p (cl-caddr entry))
                  (global-p (cl-cadddr entry))
                  (pk (concat howm-prefix k)))
-            (define-key howm-mode-map pk f)
             (when list-mode-p
               (mapc (lambda (m)
                       (define-key m k f)
@@ -314,8 +319,7 @@ key	binding
                           howm-view-contents-mode-map)))
             (when global-p
               (define-key global-map pk f))))
-        howm-default-key-table)
-  (define-key howm-mode-map "\C-x\C-s" #'save-buffer))
+        howm-default-key-table))
 (howm-set-keymap)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
