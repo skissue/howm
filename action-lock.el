@@ -30,7 +30,6 @@
 (require 'cl-lib)
 (require 'easy-mmode)
 (require 'font-lock)
-(require 'cheat-font-lock)
 (require 'howm-common)
 
 (defgroup action-lock nil
@@ -263,7 +262,7 @@ at the beginning of this file, when ARG-P is non-nil."
     regexp))
 
 (defun action-lock-font-lock ()
-  (cheat-font-lock-mode)
+  (howm-font-lock-setup)
   (if (null action-lock-original-font-lock-keywords)
       (setq action-lock-original-font-lock-keywords font-lock-keywords)
     (setq font-lock-keywords action-lock-original-font-lock-keywords))
@@ -276,8 +275,9 @@ at the beginning of this file, when ARG-P is non-nil."
                                                   'prepend)))
                                 (cons matcher hilit)))
                             action-lock-rules)))
-      (cheat-font-lock-append-keywords entries)
-      (cheat-font-lock-fontify)
+      (font-lock-add-keywords nil entries 'append)
+      (font-lock-flush)
+      (font-lock-ensure)
       )))
 
 (defun action-lock-restore-font-lock ()

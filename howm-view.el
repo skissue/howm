@@ -200,15 +200,17 @@ key	binding
 
 (defun howm-view-summary-mode-body ()
   (make-local-variable 'font-lock-keywords)
-  (cheat-font-lock-mode)
-  (cheat-font-lock-merge-keywords howm-user-font-lock-keywords
-                                  howm-view-summary-font-lock-keywords
-                                  ;; dirty! Clean dependency between files.
-                                  (howm-reminder-today-font-lock-keywords))
+  (howm-font-lock-setup)
+  (font-lock-add-keywords nil nil 'set)
+  (font-lock-add-keywords nil howm-user-font-lock-keywords 'append)
+  (font-lock-add-keywords nil howm-view-summary-font-lock-keywords 'append)
+  ;; dirty! Clean dependency between files.
+  (font-lock-add-keywords nil (howm-reminder-today-font-lock-keywords) 'append)
   (when howm-view-font-lock-keywords
-    (cheat-font-lock-merge-keywords howm-view-font-lock-keywords
-                                    howm-user-font-lock-keywords
-                                    howm-view-summary-font-lock-keywords))
+    (font-lock-add-keywords nil nil 'set)
+    (font-lock-add-keywords nil howm-view-font-lock-keywords 'append)
+    (font-lock-add-keywords nil howm-user-font-lock-keywords 'append)
+    (font-lock-add-keywords nil howm-view-summary-font-lock-keywords 'append))
   ;; font-lock-set-defaults removes these local variables after 2008-02-24
   (set (make-local-variable 'font-lock-keywords-only) t)
   (set (make-local-variable 'font-lock-keywords-case-fold-search) t)
@@ -218,7 +220,8 @@ key	binding
               (default-value 'mode-line-format)))
   ;;     (setq font-lock-keywords-case-fold-search
   ;;           howm-view-grep-ignore-case-option)
-  (cheat-font-lock-fontify)
+  (font-lock-flush)
+  (font-lock-ensure)
   )
 
 (riffle-define-derived-mode howm-view-contents-mode riffle-contents-mode "HowmC"
@@ -251,17 +254,20 @@ key	binding
 (defun howm-view-contents-mode-body ()
 ;   (kill-all-local-variables)
   (make-local-variable 'font-lock-keywords)
-  (cheat-font-lock-mode)
+  (howm-font-lock-setup)
   (let ((ck `((,howm-view-header-regexp (0 howm-view-hilit-face))))
         (sk (howm-view-font-lock-keywords)))
-    (cheat-font-lock-merge-keywords sk ck
-                                    howm-user-font-lock-keywords
-                                    howm-view-contents-font-lock-keywords)
+    (font-lock-add-keywords nil nil 'set)
+    (font-lock-add-keywords nil sk 'append)
+    (font-lock-add-keywords nil ck 'append)
+    (font-lock-add-keywords nil howm-user-font-lock-keywords 'append)
+    (font-lock-add-keywords nil howm-view-contents-font-lock-keywords 'append)
     ;; font-lock-set-defaults removes these local variables after 2008-02-24
     (set (make-local-variable 'font-lock-keywords-only) t)
     (set (make-local-variable 'font-lock-keywords-case-fold-search)
          howm-view-grep-ignore-case-option)
-    (cheat-font-lock-fontify)
+    (font-lock-flush)
+    (font-lock-ensure)
     ))
 
 (defun howm-view-font-lock-keywords ()
@@ -317,10 +323,12 @@ key	binding
       ;; (current after riffle-summary) for both normal and background cases.
       (when fl-keywords
         (setq howm-view-font-lock-keywords fl-keywords)
-        (cheat-font-lock-merge-keywords howm-view-font-lock-keywords
-                                        howm-user-font-lock-keywords
-                                        howm-view-summary-font-lock-keywords)
-        (cheat-font-lock-fontify)))
+        (font-lock-add-keywords nil nil 'set)
+        (font-lock-add-keywords nil howm-view-font-lock-keywords 'append)
+        (font-lock-add-keywords nil howm-user-font-lock-keywords 'append)
+        (font-lock-add-keywords nil howm-view-summary-font-lock-keywords 'append)
+        (font-lock-flush)
+        (font-lock-ensure)))
     r))
 
 (defun howm-view-summary-open (&optional reverse-delete-p)

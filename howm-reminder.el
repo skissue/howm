@@ -215,7 +215,7 @@ This value is passed to `format-time-string', and the result must be a regexp."
     `(lambda (bound) (re-search-forward ,r bound t))))
 
 (defun howm-reminder-add-font-lock ()
-  (cheat-font-lock-append-keywords (howm-reminder-add-font-lock-internal)))
+  (font-lock-add-keywords nil (howm-reminder-add-font-lock-internal) 'append))
 
 (defun howm-reminder-add-font-lock-internal ()
   (append (howm-reminder-font-lock-keywords)

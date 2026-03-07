@@ -626,6 +626,17 @@ after tomorrow\". BODY is evaluated under this setting;
 
 ;;; 
 
+;;; font-lock
+
+(defun howm-font-lock-setup ()
+  "Ensure font-lock-mode is enabled with minimal defaults.
+Sets font-lock-defaults to a non-nil value if unset (required for
+buffers without a major mode that configures font-lock), then
+enables font-lock-mode."
+  (unless font-lock-defaults
+    (setq-local font-lock-defaults '(nil)))
+  (font-lock-mode 1))
+
 (provide 'howm-common)
 
 ;;; howm-common.el ends here

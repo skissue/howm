@@ -360,7 +360,8 @@ key	binding
       (howm-action-lock-setup)
       (howm-mode-add-font-lock)
       (howm-reminder-add-font-lock)
-      (cheat-font-lock-fontify)
+      (font-lock-flush)
+      (font-lock-ensure)
       (add-hook 'before-save-hook 'howm-before-save t t)
       (add-hook 'after-save-hook 'howm-after-save t t))))
 

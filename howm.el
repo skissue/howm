@@ -57,7 +57,6 @@
 ;; This doesn't work in byte-compilation. I don't understand it. Sigh...
 ;; (mapcar #'require howm-required-features)
 
-(require 'cheat-font-lock)
 (require 'illusion)
 (require 'gfunc)
 (require 'riffle)

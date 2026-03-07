@@ -607,7 +607,7 @@ When this is nil, delete-region is used instead, and bug appears.")
     ;; Clean me!
     ,@(howm-reminder-today-font-lock-keywords)))
 (defun howm-menu-add-font-lock ()
-  (cheat-font-lock-append-keywords (howm-menu-font-lock-rules)))
+  (font-lock-add-keywords nil (howm-menu-font-lock-rules) 'append))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; dynamic contents
@@ -981,7 +981,7 @@ If you don't like misc. category, try
   (format howm-menu-name-format file))
 
 (defun howm-menu-name-avoid-invisible ()
-  ;; invisible buffers are no longer supported by cheat-font-lock
+  ;; invisible buffers are no longer supported
   (when (string-match "^ +\\(.*\\)" howm-menu-name-format)
     (let ((orig howm-menu-name-format)
           (fixed (match-string 1 howm-menu-name-format)))

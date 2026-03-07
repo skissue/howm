@@ -394,7 +394,7 @@ and replace a sub-expression, e.g.
           (member buf keyword-bufs)))))
 
 (defun howm-mode-add-font-lock ()
-  (cheat-font-lock-append-keywords (howm-mode-add-font-lock-internal)))
+  (font-lock-add-keywords nil (howm-mode-add-font-lock-internal) 'append))
 
 (defun howm-mode-add-font-lock-internal ()
   (when howm-use-color
@@ -1096,7 +1096,6 @@ When DOTS-STR is non-nil, it is used instead of \"...\"."
                          (string< (symbol-name x) (symbol-name y)))))))
 
 (defvar howm-required-features '(
-                                cheat-font-lock
                                 action-lock
                                 riffle
                                 gfunc
