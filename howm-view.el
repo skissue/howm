@@ -97,7 +97,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; riffle
 
-(defalias 'riffle-home:howm              'howm-view-item-home)
+(defalias 'riffle-home:howm              'howm-item-home)
 (defalias 'riffle-summary-item:howm      'howm-view-summary-item)
 (defalias 'riffle-contents-item:howm     'howm-view-contents-item)
 (defalias 'riffle-summary-set-mode:howm  'howm-view-summary-mode)
@@ -110,7 +110,7 @@
 (defvar *howm-show-item-filename* t)
 (defun riffle-post-update:howm (item)
   (when *howm-show-item-filename*
-    (howm-message-nolog "View: %s" (howm-view-item-filename item))))
+    (howm-message-nolog "View: %s" (howm-item-name item))))
 
 ;;; aliases
 
@@ -371,7 +371,7 @@ key	binding
                    (setq howm-view-summary-item-previous-name f)
                    (howm-view-item-basename item t))))
          (h (format howm-view-summary-format name)))
-    (concat h (howm-view-item-summary item))))
+    (concat h (howm-item-summary item))))
 
 (defun howm-view-summary-next-section (&optional n)
   (interactive "P")
@@ -388,7 +388,7 @@ key	binding
 (defun howm-view-summary-next-section-sub (step)
   ;; inefficient. so what?
   (let* ((f (lambda ()
-              (howm-view-item-filename (riffle-summary-current-item))))
+              (howm-item-name (riffle-summary-current-item))))
 ;;               (riffle-controller 'section (riffle-summary-current-item))))
          (cont-p (lambda ()
                    (save-excursion
@@ -419,17 +419,17 @@ was privileged.  Set by `howm-view-contents-open-sub' and consumed by
 (defun howm-view-contents-open-sub (&optional kill)
   (let* ((item (riffle-contents-current-item))
          (page (howm-item-page item))
-         (offset (howm-view-item-offset item))
+         (offset (howm-item-offset item))
          (pos (- (point) offset))
-         (viewer (howm-view-external-viewer page))
-         (priv (howm-view-item-privilege item)))
+         (viewer (howm-page-viewer page))
+         (priv (howm-item-privilege item)))
     (when kill
       (riffle-kill-buffer))
     (when priv
       (riffle-restore-window-configuration)) ;; force without mode check
     (run-hooks 'howm-view-before-open-hook)
     (if viewer
-        (howm-view-call-external-viewer viewer page)
+        (howm-viewer-call viewer page)
       (howm-view-open-item item
                            (lambda ()
                              (when (or (< pos (point-min)) (<= (point-max) pos))
@@ -461,7 +461,7 @@ was privileged.  Set by `howm-view-contents-open-sub' and consumed by
           howm-view-previous-section-beg nil
           howm-view-previous-section-end nil))
   (let* ((page (howm-item-page item))
-         (place (howm-view-item-place item))
+         (place (howm-item-place item))
          (peq (howm-page= page howm-view-previous-section-page)) ;; dirty!
          (done-p (if place
                      (and peq
@@ -475,7 +475,7 @@ was privileged.  Set by `howm-view-contents-open-sub' and consumed by
                        (format howm-view-header-format
                                (howm-page-abbreviate-name page))))
              (header-length (howm-view-string-point-count header))
-             (viewer (howm-view-external-viewer page)))
+             (viewer (howm-page-viewer page)))
         (concat header
                 (howm-view-contents-item-sub item page place header viewer
                                              (+ (point) header-length)))))))
@@ -512,8 +512,8 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
         (setq b (point-min)
               e (point-max)
               h b))
-      (howm-view-item-set-offset item (- c b))
-      (howm-view-item-set-home item (+ c (- b) h))
+      (howm-item-set-offset item (- c b))
+      (howm-item-set-home item (+ c (- b) h))
       (setq howm-view-previous-section-page page ;; dirty!
             howm-view-previous-section-beg (riffle-get-place b)
             howm-view-previous-section-end (riffle-get-place e))
@@ -563,7 +563,7 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
 ;;; misc.
 
 (defun howm-view-file-list (&optional item-list)
-  (howm-cl-remove-duplicates* (mapcar #'howm-view-item-filename
+  (howm-cl-remove-duplicates* (mapcar #'howm-item-name
                                       (or item-list (howm-view-item-list)))
                               :test #'howm-page=))
 
@@ -614,7 +614,7 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
   (if howm-view-uniq-previous
       (howm-view-summary-rebuild howm-view-uniq-previous)
     (let ((prev (howm-view-item-list)))
-      (howm-view-filter-doit #'howm-filter-items-uniq)
+      (howm-view-sort/filter-doit #'howm-filter-items-uniq)
       ;; need to set howm-view-uniq-previous AFTER rebuilding of
       ;; the summary buffer because howm-view-expire-uniq is called in it.
       (setq howm-view-uniq-previous prev))))
@@ -636,7 +636,7 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
                                                               remove-p)))
          (f `(lambda (item-list rmv-p)
                (funcall #',filter item-list ,r rmv-p))))
-    (howm-view-filter-doit f remove-p)))
+    (howm-view-sort/filter-doit f remove-p)))
 
 (defun howm-view-filter-by-keyword-in-summary (&optional remove-p keyword)
   (interactive "P")
@@ -688,7 +688,7 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
          (to (cadr r))
          (f `(lambda (item-list rmv-p)
                (funcall #',filter item-list ',from ',to rmv-p))))
-    (howm-view-filter-doit f remove-p)))
+    (howm-view-sort/filter-doit f remove-p)))
 
 (defun howm-view-filter-by-region (beg end)
   (interactive "r")
@@ -711,18 +711,13 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
                               (max (1- ,beg) 0)
                               ;; end is included.
                               (min ,end (length item-list))))))
-    (howm-view-filter-doit f)))
+    (howm-view-sort/filter-doit f)))
 
 (defun howm-view-grep-in-result (&optional remove-p regexp)
   "Search within current results using grep."
   (interactive "P")
   (howm-view-filter-by-contents-gen "Search in result (grep): "
                                     nil remove-p regexp))
-
-;; backward compatibility aliases
-(defalias 'howm-view-filter-by-contents 'howm-view-grep-in-result)
-(defalias 'howm-view-grep-in-contents 'howm-view-grep-in-result)
-(defalias 'howm-view-filter-by-keyword-in-contents 'howm-view-grep-keyword-in-contents)
 
 (defun howm-view-actually-filter-by-contents (&optional remove-p regexp)
   ;; just "filter" without modifying the items
@@ -767,25 +762,6 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
         (howm-view-summary-rebuild (funcall proc (howm-view-item-list) switch))
       (setq font-lock-keywords kw))))
 
-(defalias 'howm-view-filter-doit 'howm-view-sort/filter-doit)
-
-;; For backward compatibility with howmoney. Don't use this.
-(defun howm-view-filter-general (pred)
-  (howm-view-filter-doit (lambda (item-list _dummy)
-                           (cl-remove-if-not pred item-list))))
-;; (defun howm-view-filter-general (pred &optional remove-p with-index)
-;;   (let* ((item-list (howm-view-item-list))
-;;          (s (if with-index
-;;                 (howm-map-with-index #'list item-list)
-;;               item-list))
-;;          (r (if remove-p
-;;                 (cl-remove-if pred s)
-;;               (cl-remove-if-not pred s)))
-;;          (filtered (if with-index
-;;                        (mapcar #'car r)
-;;                      r)))
-;;     (howm-view-summary-rebuild filtered)))
-
 (defmacro howm-filter-items (pred lis &optional remove-p)
   `(if ,remove-p
        (cl-remove-if ,pred ,lis)
@@ -814,7 +790,7 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
                                      item-list regexp remove-p))
 
 (defun howm-filter-items-by-summary (item-list regexp &optional remove-p)
-  (howm-filter-items-by-name/summary #'howm-view-item-summary
+  (howm-filter-items-by-name/summary #'howm-item-summary
                                      item-list regexp remove-p))
 
 (defun howm-filter-items-by-name/summary (accessor item-list regexp remove-p)
@@ -841,7 +817,7 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
          (reg (howm-reminder-regexp howm-reminder-types)))
     (howm-filter-items
      (lambda (item)
-       (let ((s (howm-view-item-summary item)))
+       (let ((s (howm-item-summary item)))
          (and (string-match reg s)
               (let* ((x (match-string-no-properties 0 s)) ;; [2004-02-07]@
                      (d (and (string-match howm-date-regexp x)
@@ -855,7 +831,7 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
         (ts (howm-view-time-to-string to)))
     (howm-filter-items
      (lambda (item)
-       (let ((cs (howm-view-mtime (howm-view-item-filename item))))
+       (let ((cs (howm-view-mtime (howm-item-name item))))
          (and (howm-view-string<= fs cs)
               (howm-view-string< cs ts))))
      item-list remove-p)))
@@ -1328,7 +1304,7 @@ HILIT-KEYWORDS, if non-nil, overrides the default highlight keywords."
            (f (expand-file-name (or resolved str-principal))))
       (when (file-exists-p f)
         (let ((fi (howm-make-item :page (howm-make-page:file f))))
-          (howm-view-item-set-privilege fi t)
+          (howm-item-set-privilege fi t)
           (setq priv-item fi)
           (setq items (cons fi items)))))
     (list items priv-item kw)))
@@ -1412,32 +1388,6 @@ which simply calls howm-sort-items-by-NAME."
                  howm-view-s-i-comparer)))
      (howm-sort ,evaluator cmp ,item-list)))
 
-;; ;; generate the below aliases for howm-test080714
-;; (let ((methods '("random" "name" "numerical-name" "date" "reverse-date"
-;;                  "summary" "reminder" "mtime" "reverse")))
-;;   (mapcar (lambda (m)
-;;             (let* ((command
-;;                     (howm-get-symbol nil "howm-view-sort-by-" m))
-;;                    (internal
-;;                     (howm-get-symbol nil "howm-sort-items-by-" m))
-;;                    (obsolete
-;;                     (howm-get-symbol nil command "-internal")))
-;;               `(defalias ',obsolete ',internal)))
-;;           methods))
-
-;; for backward compatibility with howm-test080714 only
-(defalias 'howm-view-sort-by-random-internal 'howm-sort-items-by-random)
-(defalias 'howm-view-sort-by-name-internal 'howm-sort-items-by-name)
-(defalias 'howm-view-sort-by-numerical-name-internal
-  'howm-sort-items-by-numerical-name)
-(defalias 'howm-view-sort-by-date-internal 'howm-sort-items-by-date)
-(defalias 'howm-view-sort-by-reverse-date-internal
-  'howm-sort-items-by-reverse-date)
-(defalias 'howm-view-sort-by-summary-internal 'howm-sort-items-by-summary)
-(defalias 'howm-view-sort-by-reminder-internal 'howm-sort-items-by-reminder)
-(defalias 'howm-view-sort-by-mtime-internal 'howm-sort-items-by-mtime)
-(defalias 'howm-view-sort-by-reverse-internal 'howm-sort-items-by-reverse)
-
 (defun howm-sort-items-by-random (item-list &optional reverse-p)
   (howm-sort-items #'(lambda (_dummy) (random)) #'< item-list reverse-p))
 
@@ -1465,7 +1415,7 @@ which simply calls howm-sort-items-by-NAME."
   (howm-sort-items-by-date item-list (not reverse-p)))
 
 (defun howm-sort-items-by-summary (item-list &optional reverse-p)
-  (howm-sort-items #'howm-view-item-summary #'string<
+  (howm-sort-items #'howm-item-summary #'string<
                            item-list reverse-p))
 
 (defun howm-sort-items-by-reminder (item-list &optional reverse-p)
@@ -1475,7 +1425,7 @@ which simply calls howm-sort-items-by-NAME."
                                  (encode-time 59 59 23 31 12
                                               howm-view-max-year)))
          (evaluator (lambda (item)
-                      (let ((s (howm-view-item-summary item)))
+                      (let ((s (howm-item-summary item)))
                         (if (string-match howm-view-s-b-r-i-regexp s)
                             (match-string-no-properties 0 s)
                           howm-view-s-b-r-i-max)))))
@@ -1483,7 +1433,7 @@ which simply calls howm-sort-items-by-NAME."
 
 (defun howm-sort-items-by-mtime (item-list &optional reverse-p)
   (howm-sort-items (lambda (item)
-                     (howm-view-mtime (howm-view-item-filename item)))
+                     (howm-view-mtime (howm-item-name item)))
                    #'howm-view-string>
                    item-list reverse-p))
 
@@ -1561,20 +1511,15 @@ matched can be nil, single, or multi."
   (howm-view-lift-internal #'howm-item-name item-list regexp reverse-p))
 
 (defun howm-view-lift-by-summary-internal (item-list regexp &optional reverse-p)
-  (howm-view-lift-internal #'howm-view-item-summary item-list regexp reverse-p))
+  (howm-view-lift-internal #'howm-item-summary item-list regexp reverse-p))
 
 (defun howm-view-lift-by-summary-substring-internal (item-list regexp
                                                                &optional
                                                                reverse-p
                                                                regexp-pos)
-  (howm-view-lift-internal #'howm-view-item-summary item-list regexp reverse-p
+  (howm-view-lift-internal #'howm-item-summary item-list regexp reverse-p
                            (or regexp-pos 0)))
 
-;; backward compatibility
-(defalias 'howm-view-sort-by-name-match 'howm-view-lift-by-name)
-(defalias 'howm-view-sort-by-summary-match 'howm-view-lift-by-summary)
-(defalias 'howm-view-sort-by-summary-match-string
-  'howm-view-lift-by-summary-substring)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Dired-X
@@ -1601,7 +1546,7 @@ matched can be nil, single, or multi."
 ;;       ;; boundaries.
 ;;       (save-excursion (insert "  " (directory-file-name dir) ":\n"))))
   (let* ((i2f (lambda (item)
-                (file-relative-name (howm-view-item-filename item))))
+                (file-relative-name (howm-item-name item))))
          (current-file (funcall i2f (riffle-summary-current-item)))
          (files (howm-cl-remove-duplicates* (mapcar i2f (howm-view-item-list))
                                             :test #'equal))
@@ -1647,7 +1592,7 @@ RNAME must be relative name."
     (error "Invalid mode for this command."))
   (let* ((n (howm-view-line-number))
          (item (nth (1- n) (howm-view-item-list)))
-         (file (howm-page-abbreviate-name (howm-view-item-filename item)))
+         (file (howm-page-abbreviate-name (howm-item-name item)))
          (last-reg (regexp-quote howm-view-summary-shell-last-file)))
     (setq howm-view-summary-shell-hist
           (mapcar (lambda (h)
@@ -1661,7 +1606,7 @@ RNAME must be relative name."
       (shell-command c))
     (let ((item-list (cl-remove-if (lambda (item)
                                           (not (file-exists-p
-                                                (howm-view-item-filename item))))
+                                                (howm-item-name item))))
                                         (howm-view-item-list))))
       (setq *riffle-summary-check* nil) ;; dirty
       (howm-view-summary (howm-view-name) item-list)

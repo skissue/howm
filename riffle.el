@@ -277,8 +277,6 @@ This function returns effective value of ITEM-LIST."
 
 (riffle-define-derived-mode riffle-summary-mode riffle-mode "RiffleS"
   "not yet"
-  ;; make-local-hook is obsolete for emacs >= 21.1.
-  (when (fboundp 'make-local-hook) (make-local-hook 'post-command-hook))
   (add-hook 'post-command-hook 'riffle-post-command t t))
 
 (defun riffle-post-command ()

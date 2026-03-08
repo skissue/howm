@@ -20,19 +20,6 @@
 ;;;--------------------------------------------------------------------
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Backward compatibility
-
-;; (require 'howm-mode) in .emacs is obsolete. Use (require 'howm) instead.
-
-;; This must be earlier than (require 'howm-common), because
-;; howm-common needs cl, and (require 'cl) should be written in howm.el.
-(when (not (featurep 'howm))
-  (message "Warning: Requiring howm-mode is obsolete. Require howm instead.")
-;;   (beep)
-;;   (sit-for 1)
-  (require 'howm))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Require
 
 (provide 'howm-mode)
@@ -59,8 +46,6 @@ If it is a function, it is called to get template string with the argument <n>."
 
 (defvar howm-inhibit-title-file-match t
   "If non-nil, inhibit howm-list-title when search string matches file name")
-(defvar howm-list-all-title nil) ;; obsolete [2003-11-30]
-(defvar howm-list-recent-title nil) ;; obsolete [2003-11-30]
 
 (defvar howm-default-key-table
   '(
@@ -330,7 +315,7 @@ key	binding
             (when global-p
               (define-key global-map pk f))))
         howm-default-key-table)
-  (define-key howm-mode-map "\C-x\C-s" 'howm-save-buffer))
+  (define-key howm-mode-map "\C-x\C-s" #'save-buffer))
 (howm-set-keymap)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -391,10 +376,7 @@ key	binding
     (if (null all-items)
         (when (y-or-n-p "No notes yet. Create?")
           (howm-create))
-      (howm-normalize-show "" all-items)
-      ;; for backward compatibility
-      (cond ((howm-list-title-p) t)  ;; already done in howm-normalize-show
-            (howm-list-all-title (howm-list-title-internal))))))
+      (howm-normalize-show "" all-items))))
 
 (defun howm-all-items ()
   "Returns list of all items in the first search path."
@@ -413,10 +395,8 @@ key	binding
         (when (y-or-n-p "No recent notes. Create?")
           (howm-create))
       (howm-normalize-show "" recent-items)
-      ;; clean me [2003-11-30]
-      (cond ((howm-list-title-p) t)  ;; already done in howm-normalize-show
-            (howm-list-recent-title (howm-list-title-internal))
-            ((not days) (howm-view-summary-to-contents))))))
+      (when (and (not (howm-list-title-p)) (not days))
+        (howm-view-summary-to-contents)))))
 
 ;; clean me: direct access to howm-view-* is undesirable.
 
@@ -436,7 +416,6 @@ key	binding
     (error "Undo is not enabled.")))
 (defun howm-list-title-regexp ()
   (or howm-list-title-regexp (howm-view-title-regexp-grep)))
-(defalias 'howm-list-title 'howm-list-toggle-title) ;; backward compatibility
 (defun howm-list-toggle-title (&optional undo)
   (interactive "P")
   (if (or undo howm-list-title-previous)
@@ -783,7 +762,7 @@ We need entire-match in order to
   (interactive)
   (howm-set-command 'howm-list-around)
   (let ((f (buffer-file-name))
-        (item-list (howm-view-sort-by-reverse-date-internal
+        (item-list (howm-sort-items-by-reverse-date
                     (howm-all-items))))
     (let ((howm-normalizer #'identity))
       (howm-normalize-show "" item-list))
@@ -936,21 +915,11 @@ We need entire-match in order to
         (howm-replace howm-template-rules arg beg end)
         end))))
 
-(defvar howm-template-receive-buffer t
-  "Non nil if howm-template should receive previous-buffer
-when howm-template is a function.
-Set this option to nil if backward compatibility with howm-1.2.4 or earlier
-is necessary.")
-
 (defun howm-template-string (which-template previous-buffer)
   ;; which-template should be 1, 2, 3, ...
   (setq which-template (or which-template 1))
   (cond ((stringp howm-template) howm-template)
-        ((functionp howm-template) (let ((args (if howm-template-receive-buffer
-                                                   (list which-template
-                                                         previous-buffer)
-                                                 (list which-template))))
-                                     (apply howm-template args)))
+        ((functionp howm-template) (funcall howm-template which-template previous-buffer))
         ((listp howm-template) (nth (- which-template 1) howm-template))))
 
 (defun howm-replace (rules arg &optional beg end)
@@ -1247,8 +1216,8 @@ KEYWORD itself is always at the head of the returneded list.
   "Open KEYWORD as menu."
   ;; dirty. peeking howm-view.el
   (let* ((item (car item-list))
-         (fname (howm-view-item-filename item))
-         (place (howm-view-item-place item)))
+         (fname (howm-item-name item))
+         (place (howm-item-place item)))
     (let ((howm-search-other-dir nil))
       (howm-menu-open fname place (howm-menu-name keyword))))
   (when multi-hits-p
@@ -1292,7 +1261,7 @@ KEYWORD itself is always at the head of the returneded list.
           (setq keyword-list (cons key-str keyword-list))))
       (howm-keyword-add keyword-list))))
 (defun howm-keyword-add-items (items)
-  (let ((files (mapcar #'howm-view-item-filename items)))
+  (let ((files (mapcar #'howm-item-name items)))
     (with-temp-buffer
       (mapc (lambda (f)
               (erase-buffer)

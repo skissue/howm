@@ -732,16 +732,16 @@ ITEM-LIST is list of items which should be shown."
                                (howm-todo-priority item))
                      ""))
          (h (format "%s%3s%s" dow-str late priority)))
-    (howm-menu-list-format h (howm-view-item-summary item) item
+    (howm-menu-list-format h (howm-item-summary item) item
                            howm-menu-reminder-format)))
 
 (defun howm-day-of-week-string (&optional day-of-week)
   ;; 0 = Sunday
   (let ((dow (or day-of-week (nth 6 (decode-time))))
         (names (howm-day-of-week)))
-    (cond ((stringp names) (substring names dow (1+ dow))) ;; backward compatibility
-          ((listp names) (nth dow names))
-          (t "  "))))
+    (if (listp names)
+        (nth dow names)
+      "  ")))
 
 (defun howm-menu-format-full (item)
   (let ((text (format "%s %s\n%s"
@@ -749,7 +749,7 @@ ITEM-LIST is list of items which should be shown."
                       (howm-item-name item)
                       (with-temp-buffer
                         (howm-page-insert (howm-item-page item))
-                        (howm-view-set-place (howm-view-item-place item))
+                        (howm-view-set-place (howm-item-place item))
                         (apply 'buffer-substring-no-properties
                                (howm-view-paragraph-region))))))
     (howm-menu-list-put-item text item)
@@ -809,7 +809,7 @@ ITEM-LIST is list of items which should be shown."
 
 (defun howm-menu-format-item (item &optional list-format)
   (let* ((info (file-name-sans-extension (howm-view-item-basename item)))
-         (line (howm-view-item-summary item)))
+         (line (howm-item-summary item)))
     (howm-menu-list-format info line item list-format)))
 
 (defun howm-menu-list-format (info line item &optional list-format)
@@ -955,8 +955,6 @@ If you don't like misc. category, try
 (defun howm-lang-ref (var)
   (let ((lang howm-menu-lang))
     (howm-require-lang lang)
-    ;; For backward compatibility, I use howm-day-of-week-en
-    ;; rather than howm-day-of-week:en.
     (symbol-value (howm-get-symbol t var "-" lang))))
 
 (defun howm-menu-command-table-raw ()

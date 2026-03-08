@@ -373,10 +373,6 @@ ssearch: ")
             is)
     is))
 
-;;; For backward compatibility. Don't use it any more.
-
-(defalias 'howm-view-directory-items  #'howm-folder-items)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Grep
 
@@ -438,7 +434,6 @@ ssearch: ")
 (defun howm-grep-multi-p ()
   howm-view-grep-file-stdin-option)
 
-;; obsolete
 (defun howm-real-grep-single (str file-list
                                   &optional fixed-p force-case-fold)
   "Call grep and parse its result.
@@ -457,8 +452,7 @@ ssearch: ")
     (if (null (cdr str))
         (setq str (car str))
       (error "Multiple patterns are not supported: %s" str)))
-  (let ((grep-command (or (and fixed-p howm-view-fgrep-command)
-                          (howm-grep-command)))
+  (let ((grep-command (howm-grep-command))
         (opt (split-string howm-view-grep-option))
         (eopt (and howm-view-grep-expr-option
                    (list howm-view-grep-expr-option)))
@@ -473,8 +467,7 @@ ssearch: ")
     (list grep-command `(,@opt ,@eopt ,str) fs)))
 
 (defun howm-real-grep-multi (str file-list &optional fixed-p force-case-fold)
-  (let ((grep-command (or (and fixed-p howm-view-fgrep-command)
-                          (howm-grep-command)))
+  (let ((grep-command (howm-grep-command))
         (opt (split-string howm-view-grep-option))
         (eopt (split-string howm-view-grep-file-stdin-option)))
     (let* ((str-list (cond ((stringp str) (list str))
@@ -562,10 +555,6 @@ STR can be list of strings. They are regarded as \"or\" pattern of all elements.
         (list file line content))
     nil))
 
-;; For backward compatibility. Don't use them any more.
-(defalias 'howm-view-grep #'howm-grep)
-(defalias 'howm-view-call-process #'howm-call-process)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; class Page
 
@@ -605,7 +594,6 @@ STR can be list of strings. They are regarded as \"or\" pattern of all elements.
 (defun howm-page-abbreviate-name (page)
   (howm-abbreviate-file-name (format "%s" (howm-page-name page))))
 
-(defalias 'howm-save-buffer #'save-buffer)
 
 (defun howm-insert-buffer-contents (buffer)
   (insert (with-current-buffer buffer
@@ -627,11 +615,6 @@ STR can be list of strings. They are regarded as \"or\" pattern of all elements.
 ;;   (with-current-buffer (get-file-buffer (howm-page-name howm-buffer-page))
 ;;     (apply #'save-buffer args)))
 
-;; (defun howm-save-buffer (&optional args)
-;;   (interactive "p")
-;;   (prog1
-;;       (save-buffer args)
-;;     (howm-after-save)))
 
 ;;;
 ;;; file page: name of file
@@ -865,9 +848,6 @@ STR can be list of strings. They are regarded as \"or\" pattern of all elements.
         (howm-viewer-call viewer (expand-file-name f))
       (funcall orig-fun f u))))
 
-;; For backward compatibility. Don't use them any more.
-(defalias 'howm-view-external-viewer      #'howm-page-viewer)
-(defalias 'howm-view-call-external-viewer #'howm-viewer-call)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; class Item
@@ -898,17 +878,6 @@ STR can be list of strings. They are regarded as \"or\" pattern of all elements.
   (setf (howm-item-home item) val))
 (defun howm-item-set-privilege (item val)
   (setf (howm-item-privilege item) val))
-
-(defalias 'howm-view-item-filename      #'howm-item-name)
-(defalias 'howm-view-item-summary       #'howm-item-summary)
-(defalias 'howm-view-item-place         #'howm-item-place)
-(defalias 'howm-view-item-offset        #'howm-item-offset)
-(defalias 'howm-view-item-home          #'howm-item-home)
-(defalias 'howm-view-item-privilege     #'howm-item-privilege)
-(defalias 'howm-view-item-set-summary   #'howm-item-set-summary)
-(defalias 'howm-view-item-set-offset    #'howm-item-set-offset)
-(defalias 'howm-view-item-set-home      #'howm-item-set-home)
-(defalias 'howm-view-item-set-privilege #'howm-item-set-privilege)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; search path

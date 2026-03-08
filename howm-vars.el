@@ -777,9 +777,6 @@ When the value is elisp function, it is used instead of `howm-fake-grep'."
   :type '(radio (const :tag "Default (grep-program)" nil)
                 string)
   :group 'howm-grep)
-(howm-defvar-risky howm-view-fgrep-command nil
-  "*Command name for fgrep.
-This variable is obsolete and may be removed in future.")
 (defvar howm-view-grep-default-option
   ;; "labels" causes a trouble in git-head emacs (d5e3922) [2015-01-31]
   (let* ((ed (lambda (d) (concat "--exclude-dir=" d)))

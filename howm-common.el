@@ -89,32 +89,6 @@ The objects removed are those matching
 (defun howm-insert-file-contents (file)
   (insert-file-contents file nil nil howm-view-contents-limit))
 
-;;; for XEmacs fallback
-;; (if (not (fboundp 'font-lock-fontify-block))
-;;     (defalias 'font-lock-fontify-block 'font-lock-fontify-buffer))
-;;; If you use APEL, you can replace a below block with (require 'poe).
-(if (not (fboundp 'line-beginning-position))
-    (defalias 'line-beginning-position 'point-at-bol))
-(if (not (fboundp 'line-end-position))
-    (defalias 'line-end-position 'point-at-eol))
-;;; Imported from APEL 10.6
-(if (not (fboundp 'match-string-no-properties))
-    ;; Emacs 20.3 and later: (match-string-no-properties NUM &optional STRING)
-    (defun match-string-no-properties (num &optional string)
-      "Return string of text matched by last search, without text properties.
-NUM specifies which parenthesized expression in the last regexp.
- Value is nil if NUMth pair didn't match, or there were less than NUM pairs.
-Zero means the entire text matched by the whole regexp or whole string.
-STRING should be given if the last search was by `string-match' on STRING."
-      (if (match-beginning num)
-          (if string
-              (let ((result
-                     (substring string (match-beginning num) (match-end num))))
-                (set-text-properties 0 (length result) nil result)
-                result)
-            (buffer-substring-no-properties (match-beginning num)
-                                            (match-end num))))))
-
 (defmacro howm-message-time (name &rest body)
   (declare (indent 1))
   `(let ((howm-message-time-0 (current-time)))
@@ -405,13 +379,7 @@ current timezone rule uniformly to avoid inconsistency."
 (defvar *howm-view-in-background* nil
   "for internal use.
 Don't set this variable directly.
-Use `howm-view-in-background' and `howm-view-in-background-p' instead.")
-
-(defmacro howm-view-in-background (&rest body)
-  "Obsolete. Do not use this any more."
-  (declare (indent 0))
-  `(let ((*howm-view-in-background* t))
-     ,@body))
+Use `howm-view-in-background-p' instead.")
 
 (defun howm-view-in-background-p ()
   *howm-view-in-background*)

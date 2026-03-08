@@ -421,14 +421,6 @@ howm-search-execute, proving it delegates correctly."
            (matched (car result)))
       (should (member 'keyword matched)))))
 
-(ert-deftest howm-test-grep-in-result-alias ()
-  "howm-view-grep-in-contents and howm-view-filter-by-contents should
-be aliases for howm-view-grep-in-result."
-  (should (eq (symbol-function 'howm-view-grep-in-contents)
-              'howm-view-grep-in-result))
-  (should (eq (symbol-function 'howm-view-filter-by-contents)
-              'howm-view-grep-in-result)))
-
 (provide 'howm-search-test)
 
 ;;; howm-search-test.el ends here

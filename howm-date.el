@@ -38,7 +38,6 @@
   (interactive)
   (insert (format-time-string howm-dtime-format)))
 
-;; Sorry for ugly behavior around "new" to keep backward compatibility.
 (defun howm-action-lock-date (date &optional new future-p)
   (let* ((pass-through (and new howm-insert-date-pass-through))
          (prompt (howm-action-lock-date-prompt date new pass-through))

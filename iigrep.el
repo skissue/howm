@@ -440,10 +440,4 @@ Use \\='(\"-S\" \"migemo\" \"-t\" \"egrep\") for the original migemo.")
            (funcall (function ,continuation)
                     pattern))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; key binding
-
-;; backward compatibility for my old .emacs
-(defun iigrep-define-key-for (_command &optional _force _map))
-
 ;;; iigrep.el ends here

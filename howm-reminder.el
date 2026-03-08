@@ -248,9 +248,9 @@ This value is passed to `format-time-string', and the result must be a regexp."
          (r (howm-reminder-regexp "."))
          (summaries (mapcar (lambda (item)
                               (howm-reminder-omit-before
-                               r (howm-view-item-summary item)))
+                               r (howm-item-summary item)))
                            (howm-view-item-list))))
-;;         (summaries (mapcar 'howm-view-item-summary (howm-view-item-list))))
+;;         (summaries (mapcar 'howm-item-summary (howm-view-item-list))))
     (let ((rest summaries)
           (n 0))
       (while (and rest
@@ -514,7 +514,7 @@ See docstring of the variable `howm-menu-reminder-separators' for details."
 
 ;; Clean me.
 (defun howm-reminder-parse (item)
-  (howm-todo-parse-string (howm-view-item-summary item)))
+  (howm-todo-parse-string (howm-item-summary item)))
 (defun howm-todo-parse (item)
   (cdr (howm-reminder-parse item)))
 (defun howm-todo-parse-string (str)
@@ -562,7 +562,7 @@ Example: (howm-todo-parse-string \"abcde [2004-11-04]@ hogehoge\")
     (funcall f late lazy item)))
 
 (defun howm-todo-priority-ext (item)
-  (cons (howm-todo-priority item) (howm-view-item-summary item)))
+  (cons (howm-todo-priority item) (howm-item-summary item)))
 (defun howm-todo-priority-ext-gt (e1 e2)
   "Compare two results E1 and E2 of `howm-todo-priority-ext'.
 Return true if E1 has higher priority than E2."
@@ -612,12 +612,7 @@ Return true if E1 has higher priority than E2."
 ;;         (t
 ;;          (+ late howm-todo-priority-schedule-bottom))))
 
-(defun howm-todo-priority-deadline (late lz item)
-  (if howm-reminder-schedule-interval
-      (howm-todo-priority-deadline-1 late lz item)
-    (howm-todo-priority-deadline-2 late lz item)))
-
-(defun howm-todo-priority-deadline-1 (late lz _item)
+(defun howm-todo-priority-deadline (late lz _item)
   (let ((r (howm-todo-relative-late late lz
                                     howm-todo-priority-deadline-laziness))
         (c (- howm-todo-priority-deadline-init))
@@ -630,22 +625,7 @@ Return true if E1 has higher priority than E2."
           ((< r -1) (+ bot r))
           (t (* c r)))))
 
-(defun howm-todo-priority-deadline-2 (late lz _item)
-  "This function may be obsolete in future.
-`howm-todo-priority-deadline-1' will be used instead."
-  (let ((r (howm-todo-relative-late late lz
-                                    howm-todo-priority-deadline-laziness))
-        (c (- howm-todo-priority-deadline-init)))
-    (cond ((> r 0) (+ r howm-todo-priority-deadline-top))
-          ((< r -1) (+ r howm-todo-priority-deadline-bottom))
-          (t (* c r)))))
-
-(defun howm-todo-priority-schedule (late lz item)
-  (if howm-reminder-schedule-interval
-      (howm-todo-priority-schedule-1 late lz item)
-    (howm-todo-priority-schedule-2 late lz item)))
-
-(defun howm-todo-priority-schedule-1 (late lz _item)
+(defun howm-todo-priority-schedule (late lz _item)
   (let ((lazy (or lz howm-todo-priority-schedule-laziness))
         (from (howm-reminder-schedule-interval-from))
         (to   (howm-reminder-schedule-interval-to))
@@ -654,14 +634,6 @@ Return true if E1 has higher priority than E2."
     (cond ((< late (- to))        (+ bot late))
           ((< late (+ from lazy)) (+ top late))
           (t (+ bot late)))))
-
-(defun howm-todo-priority-schedule-2 (late lz _item)
-  "This function may be obsolete in future.
-`howm-todo-priority-schedule-1' will be used instead."
-  (let ((r (howm-todo-relative-late late lz
-                                    howm-todo-priority-schedule-laziness)))
-    (cond ((> r 0) (+ r howm-todo-priority-schedule-bottom))
-          (t r))))
 
 (defun howm-todo-priority-done (late _lz _item)
   (+ late howm-todo-priority-done-bottom))
@@ -967,23 +939,4 @@ Example:
       (set var (format "[%s]" new)))))
 
 ;; (example)
-;; If you write like below in your memo, it will appear
-;; under today's schedule in reminder list.
-;; The date "2004-11-01" is dummy and "0" means the position "today - 0".
-;;   [2004-11-01]_0 ========================
-;; (defun howm-todo-priority-separator (late lazy item)
-;;   (- howm-huge (or lazy 0) -1))
-;; (defface howm-reminder-separator-face
-;;   ;; invisible :p
-;;   '((((class color) (background light)) (:foreground "white"))
-;;     (((class color) (background dark)) (:foreground "black"))
-;;     (t ()))
-;;   "Face for `howm-list-reminder'. This is obsolete and will be removed in future."
-;;   :group 'howm-faces)
-;; (defvar howm-reminder-separator-face 'howm-reminder-separator-face)
-;; (defvar howm-reminder-separator-type "_")
-;; (howm-define-reminder howm-reminder-separator-type
-;;                       #'howm-todo-priority-separator
-;;                       'howm-reminder-separator-face t t)
-
 ;;; howm-reminder.el ends here
