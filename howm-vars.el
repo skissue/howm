@@ -32,9 +32,9 @@
                             orig)))
     `(defmacro ,risky
          (,gsymbol &rest ,gargs)
-         ,docstring
-         (declare (indent 'defun))
-         (howm-define-risky-command-body ',orig ,gsymbol ,gargs))))
+       ,docstring
+       (declare (indent defun))
+       (howm-define-risky-command-body ',orig ,gsymbol ,gargs))))
 
 ;; [2011-01-13]
 ;; I split this function from howm-define-risky-command for avoiding
@@ -201,7 +201,7 @@ To avoid such troubles, this variable is prepared as a fixed string.")
                       ,@howm-excluded-file-regexp-common-list)
                     "\\|")))
     (howm-defcustom-risky howm-excluded-file-regexp
-                          howm-excluded-file-regexp-dots-ng
+      howm-excluded-file-regexp-dots-ng
       "Regexp for excluded files.
 It is checked for relative paths from howm-directory and howm-search-path.
 A file is excluded iff this regexp matches with all the relative paths."
@@ -224,8 +224,8 @@ A file is excluded iff this regexp matches with all the relative paths."
   (let ((lang-table '((fr "French" "^fr")
                       (ja "Japanese" "^ja"))))
     (let ((lang (or (and (boundp 'current-language-environment)
-                        current-language-environment)
-                   ""))
+                         current-language-environment)
+                    ""))
           (locale (howm-get-locale))
           (ret 'en))
       (mapc (lambda (rule)
@@ -293,10 +293,10 @@ allowed.")
         reg
       (let ((types (split-string (match-string-no-properties 1 reg) "")))
         (if (cl-find-if-not (lambda (x) (member x default-types))
-                                 types)
+                            types)
             reg
           (cl-remove-if-not (lambda (x) (member x types))
-                                 default-types))))))
+                            default-types))))))
 (defun howm-custom-reminder-set-types (symbol types)
   (when (listp types)
     (setq types (apply #'concat `("[" ,@types "]"))))
@@ -576,9 +576,9 @@ Howm-menu, as well as the files listed by `howm-list-recent'."
     howm-list-all
     howm-list-recent
     howm-list-around
-    ; howm-keyword-search
-    ; howm-list-grep howm-list-grep-fixed howm-list-migemo
-    ; howm-list-related
+    ;; howm-keyword-search
+    ;; howm-list-grep howm-list-grep-fixed howm-list-migemo
+    ;; howm-list-related
     howm-action-lock-date-search
     )
   "List of commands in which titles are listed instead of matched lines.
@@ -587,14 +587,14 @@ If it is a function, the evaluated value is used instead of itself."
   :type `(radio (const :tag "Always" t)
                 (const :tag "Never" nil)
                 ,howm-custom-command-list
-;;                 (set (const howm-list-all)
-;;                      (const howm-list-recent)
-;;                      (const howm-list-around)
-;;                      (const howm-keyword-search)
-;;                      (const howm-list-grep)
-;;                      (const howm-list-grep-fixed)
-;;                      (const howm-list-migemo)
-;;                      (const howm-list-related))
+                ;; (set (const howm-list-all)
+                ;;      (const howm-list-recent)
+                ;;      (const howm-list-around)
+                ;;      (const howm-keyword-search)
+                ;;      (const howm-list-grep)
+                ;;      (const howm-list-grep-fixed)
+                ;;      (const howm-list-migemo)
+                ;;      (const howm-list-related))
                 function)
   :group 'howm-efficiency
   :group 'howm-title)
@@ -761,7 +761,7 @@ When the value is elisp function, it is used instead of `howm-fake-grep'."
          (has-ed (condition-case nil
                      (eq 0 (call-process (howm-grep-command) nil nil nil
                                          (funcall ed "/") "--version"))
-                     (error nil)))
+                   (error nil)))
          (opts (cons "-Hnr" (and has-ed (mapcar ed howm-excluded-dirs)))))
     (mapconcat #'identity opts " ")))
 (howm-defcustom-risky howm-view-grep-option howm-view-grep-default-option
