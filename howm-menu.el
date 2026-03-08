@@ -27,20 +27,19 @@
 
 ;;; general
 
-(howm-defvar-risky howm-menu-mode-map nil)
-(let ((m (make-keymap)))
-  (define-key m action-lock-magic-return-key 'howm-menu-invoke)
-  (define-key m [tab] 'action-lock-goto-next-link)
-  (define-key m [(meta tab)] 'action-lock-goto-previous-link)
-  (define-key m "\C-i" 'action-lock-goto-next-link)
-  (define-key m "\M-\C-i" 'action-lock-goto-previous-link)
-  (define-key m " " 'scroll-up)
-  (define-key m [backspace] 'scroll-down)
-  (define-key m (kbd "DEL") 'scroll-down)
-  (define-key m "q" 'bury-buffer)
-  (define-key m "?" 'describe-mode)
-  (setq howm-menu-mode-map m)
-  )
+(howm-defvar-risky howm-menu-mode-map
+  (let ((m (make-keymap)))
+    (define-key m action-lock-magic-return-key 'howm-menu-invoke)
+    (define-key m [tab] 'action-lock-goto-next-link)
+    (define-key m [(meta tab)] 'action-lock-goto-previous-link)
+    (define-key m "\C-i" 'action-lock-goto-next-link)
+    (define-key m "\M-\C-i" 'action-lock-goto-previous-link)
+    (define-key m " " 'scroll-up)
+    (define-key m [backspace] 'scroll-down)
+    (define-key m (kbd "DEL") 'scroll-down)
+    (define-key m "q" 'bury-buffer)
+    (define-key m "?" 'describe-mode)
+    m))
 
 ;;; schedule, todo, recent, random
 
@@ -167,10 +166,16 @@ Regexp R1 is replaced by T1 if T1 is a string.
 (make-variable-buffer-local 'howm-menu-buffer-file-place)
 (make-variable-buffer-local 'howm-menu-mode-local-map)
 
+;; Protect critical buffer-local variables from kill-all-local-variables
+;; (called by define-derived-mode during re-entrant menu refreshes).
+(put 'howm-menu-buffer-file 'permanent-local t)
+(put 'howm-menu-buffer-file-place 'permanent-local t)
+(put 'howm-menu-previous-buffer 'permanent-local t)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; mode
 
-(defun howm-menu-mode ()
+(define-derived-mode howm-menu-mode special-mode "HM"
   "howm menu
 
 Think of this menu as a \"modal dialog\" rather than a workspace.
@@ -186,12 +191,8 @@ key	binding
 \\[describe-mode]	This help
 \\[bury-buffer]	Quit
 "
-  (interactive)
-  (setq major-mode 'howm-menu-mode
-        mode-name "HM")
   (setq howm-menu-mode-local-map (copy-keymap howm-menu-mode-map))
-  (use-local-map howm-menu-mode-local-map)
-  )
+  (use-local-map howm-menu-mode-local-map))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; main

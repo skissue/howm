@@ -600,17 +600,10 @@ and replace a sub-expression, e.g.
                         (where-is-internal f howm-remember-mode-map t)))
                      '(howm-remember-submit howm-remember-discard)))))
 
-(defun howm-remember-mode ()
+(define-derived-mode howm-remember-mode text-mode "HowmRemember"
   "Major mode for `howm-remember'.
 
-\\{howm-remember-mode-map}"
-  (interactive)
-  (kill-all-local-variables)
-  (text-mode)
-  (use-local-map howm-remember-mode-map)
-  (setq major-mode 'howm-remember-mode
-        mode-name "HowmRemember")
-  (run-hooks 'howm-remember-mode-hook))
+\\{howm-remember-mode-map}")
 
 (defun howm-remember-submit ()
   (interactive)
