@@ -120,24 +120,6 @@ Byte-compiler says \"not known to be defined\" even for codes like
   "Wiki-like note-taking tool."
   :group 'applications)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Compatibility
-
-(defvar howm-compatible-to-ver1dot3 nil
-  "If non-nil, compatible values to howm-1.3.* are used
-as default of some variables; put (setq howm-compatible-to-ver1dot3 t)
-*before* (require \\='howm) if you like.")
-
-(defgroup howm-compatibility nil
-  "Compatibility to howm-1.3.*."
-  :group 'howm)
-
-(defmacro howm-if-ver1dot3 (oldval def)
-  (declare (indent 1))
-  (cl-destructuring-bind (command var val &rest args) def
-    `(,command ,var (if howm-compatible-to-ver1dot3 ,oldval ,val)
-               ,@args
-               :group 'howm-compatibility)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Files
@@ -152,18 +134,17 @@ as default of some variables; put (setq howm-compatible-to-ver1dot3 t)
   :group 'howm-files)
 
 (let ((default-format "%Y/%m/%Y-%m-%d-%H%M%S.txt"))
-  (howm-if-ver1dot3 "%Y/%m/%Y-%m-%d-%H%M%S.howm"
-    (defcustom howm-file-name-format default-format
-      "Name of new file. See `format-time-string'.
+  (defcustom howm-file-name-format default-format
+    "Name of new file. See `format-time-string'.
 For example, set as \"%Y/%m/%Y-%m-%d-%H%M%S.txt\" to separate each entry
 to its own file. You must guarantee (string< oldfile newfile)."
-      :type `(radio (const :tag "One file for one entry" ,default-format)
-                    (const :tag "One file for one day" "%Y/%m/%Y-%m-%d.txt")
-                    (const :tag "One file for one month" "%Y/%Y-%m.txt")
-                    (const :tag "One file for one year" "%Y.txt")
-                    string)
-      :group 'howm-efficiency
-      :group 'howm-files)))
+    :type `(radio (const :tag "One file for one entry" ,default-format)
+                  (const :tag "One file for one day" "%Y/%m/%Y-%m-%d.txt")
+                  (const :tag "One file for one month" "%Y/%Y-%m.txt")
+                  (const :tag "One file for one year" "%Y.txt")
+                  string)
+    :group 'howm-efficiency
+    :group 'howm-files))
 
 (howm-defcustom-risky howm-keyword-file "~/.howm-keys"
   "*Keywords (WikiNames) are stored in this file."
@@ -371,28 +352,26 @@ Be careful that you cannot undo the result of action-lock after kill-buffer."
   :type 'boolean
   :group 'howm-reminder)
 
-(howm-if-ver1dot3 0
-  (defcustom howm-action-lock-forward-fuzziness 5
-    "*Maximum lines of permitted inconsistency for `howm-action-lock-forward'."
-    :type 'integer
-    :group 'howm-reminder))
+(defcustom howm-action-lock-forward-fuzziness 5
+  "*Maximum lines of permitted inconsistency for `howm-action-lock-forward'."
+  :type 'integer
+  :group 'howm-reminder)
 
 (let* ((sep "- - - - - - - - - - - - - - - - - - -")
        (reminder-default `((-1 . ,sep) (0 . ,sep) (nil . ,sep)))
        (todo-default `((0 . ,sep) (nil . ,sep))))
-  (howm-if-ver1dot3 nil
-    (defcustom howm-menu-reminder-separators reminder-default
-      "Assoc list to specify positions and strings of separators in reminder
+  (defcustom howm-menu-reminder-separators reminder-default
+    "Assoc list to specify positions and strings of separators in reminder
 in menu. For each element, car is days from now, and cdr is separator string.
 If car is nil, it means the border between schedule and todo.
 This option is prepared for `howm-menu-reminder'."
-      :type `(radio (const :tag "No separators" nil)
-                    (const :tag "Default separators" ,reminder-default)
-                    (alist :key-type
-                           (radio number
-                                  (const :tag "Between schedule and todo" nil))
-                           :value-type string))
-      :group 'howm-reminder))
+    :type `(radio (const :tag "No separators" nil)
+                  (const :tag "Default separators" ,reminder-default)
+                  (alist :key-type
+                         (radio number
+                                (const :tag "Between schedule and todo" nil))
+                         :value-type string))
+    :group 'howm-reminder)
   (defcustom howm-todo-separators nil
     "Assoc list to specify positions and strings of separators in todo buffer.
 For each element, car is priority and cdr is separator string.
@@ -403,11 +382,10 @@ If car is nil, it means the border between active and sleeping reminders."
                          :value-type string))
     :group 'howm-reminder))
 
-(howm-if-ver1dot3 nil
-  (defcustom howm-schedule-sort-by-time t
-    "Non nil if `howm-schedule-sort-converter' should consider time part."
-    :type 'boolean
-    :group 'howm-reminder))
+(defcustom howm-schedule-sort-by-time t
+  "Non nil if `howm-schedule-sort-converter' should consider time part."
+  :type 'boolean
+  :group 'howm-reminder)
 
 (defcustom howm-reminder-menu-types
   "[-+~!@]"
@@ -839,12 +817,11 @@ Example:
                 (cons coding-system coding-system))
   :group 'howm-grep)
 
-(howm-if-ver1dot3 nil
-  (defcustom howm-occur-force-fake-grep t
-    "*If non-nil, force `howm-occur' to use `howm-fake-grep'
+(defcustom howm-occur-force-fake-grep t
+  "*If non-nil, force `howm-occur' to use `howm-fake-grep'
 so that highlighting works correctly."
-    :type 'boolean
-    :group 'howm-grep))
+  :type 'boolean
+  :group 'howm-grep)
 
 (defgroup howm-iigrep nil
   "Show search results on the fly before hitting RET."

@@ -905,21 +905,20 @@ But I'm not sure for multi-byte characters on other versions of emacsen."
                    howm-view-title-header))
        (r3 (format "\\(%s\\)\\|\\(^\\[[-: 0-9]+\\]\\( \\|$\\)\\)" r1)))
 
-  (howm-if-ver1dot3 nil
-    (defcustom howm-view-title-skip-regexp r3
-      "*Regular expression for lines which should not be titles.
+  (defcustom howm-view-title-skip-regexp r3
+    "*Regular expression for lines which should not be titles.
 If the original title matches this regexp, the first non-matched line
 is shown as title instead.
 Nil disables this feature.
 
 This feature requires paragraph-aware search-in-result."
-      :type `(radio (const :tag "Off" nil)
-                    (const :tag ,t1 ,r1)
-                    (const :tag ,t2 ,r2)
-                    (const :tag ,t3 ,r3)
-                    regexp)
-      :group 'howm-title
-      :group 'howm-efficiency)))
+    :type `(radio (const :tag "Off" nil)
+                  (const :tag ,t1 ,r1)
+                  (const :tag ,t2 ,r2)
+                  (const :tag ,t3 ,r3)
+                  regexp)
+    :group 'howm-title
+    :group 'howm-efficiency))
 
 (defcustom howm-view-list-title-type 1
   "*Type of showing title in summary buffer.
