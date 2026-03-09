@@ -24,9 +24,11 @@
 
 ;;; Commentary:
 
-;; Show a preview of the target note in the eldoc area when point is
-;; on a howm ref link (">>> path/to/file").  Only concrete file-path
-;; links are supported (expand-file-name + file-exists-p gate).
+;; Show contextual eldoc information for howm links:
+;;
+;;   1. >>> filepath  (file exists)  → preview of the target note
+;;   2. >>> keyword   (not a file)   → number of search matches
+;;   3. Implicit come-from keywords  → preview of the <<< source note
 ;;
 ;; Usage:
 ;;   (add-hook 'howm-mode-hook #'howm-eldoc-mode)
@@ -94,6 +96,17 @@ Respects `action-lock-case-fold-search'.  Leaves match data set."
   "Return the keyword string if point is on a howm ref link, else nil."
   (howm-eldoc-match-keyword howm-ref-regexp howm-ref-regexp-pos))
 
+(defun howm-eldoc-implicit-keyword-at-point ()
+  "Return the implicit come-from keyword at point, or nil.
+Reconstructs the keyword regexp the same way `howm-action-lock-setup' does."
+  (let ((ks (howm-keyword-for-goto)))
+    (when ks
+      (let ((r (mapconcat (if howm-check-word-break
+                              #'howm-action-lock-quote-keyword
+                            #'regexp-quote)
+                          ks "\\|")))
+        (howm-eldoc-match-keyword r 0)))))
+
 (defun howm-eldoc-resolve-file (keyword)
   "If KEYWORD names an existing file, return its expanded path.  Else nil."
   (let ((f (expand-file-name keyword)))
@@ -135,15 +148,64 @@ Respects `action-lock-case-fold-search'.  Leaves match data set."
                 (setq text (string-join lines "\n"))))
             text))))))
 
+(defun howm-eldoc--async-search (keyword callback formatter)
+  "Search for KEYWORD asynchronously and call CALLBACK with formatted result.
+FORMATTER is called with (items priv-item) and should return a string or nil."
+  (let ((buf (current-buffer)))
+    (run-with-timer
+     0 nil
+     (lambda ()
+       (when (buffer-live-p buf)
+         (let* ((result (howm-search-execute keyword
+                                             (howm-search-path-folder)
+                                             nil t))
+                (items (nth 0 result))
+                (text (funcall formatter items)))
+           (when text
+             (funcall callback text)))))))
+  t)
+
+(defun howm-eldoc--format-search-count (items)
+  "Format search result count for ITEMS."
+  (let ((n (length items)))
+    (when (> n 0)
+      (format "%d match%s" n (if (= n 1) "" "es")))))
+
+(defun howm-eldoc--format-comefrom-preview (items)
+  "Format come-from preview by finding the <<< source in ITEMS."
+  (when-let* ((source (cl-find-if
+                       (lambda (item)
+                         (string-match howm-keyword-regexp
+                                       (howm-item-summary item)))
+                       items))
+              (filepath (howm-item-name source)))
+    (howm-eldoc-preview filepath)))
+
 (defun howm-eldoc-function (callback &rest _plist)
-  "Eldoc documentation function for howm ref links.
-Shows a preview of the target file when point is on a ref link
-whose keyword resolves to an existing file."
-  (when-let* ((keyword (howm-eldoc-keyword-at-point))
-              (filepath (howm-eldoc-resolve-file keyword))
-              (preview (howm-eldoc-preview filepath)))
-    (funcall callback preview)
-    t))
+  "Eldoc documentation function for howm links.
+Dispatches to one of three handlers:
+  1. >>> filepath (file exists) — synchronous content preview
+  2. >>> keyword (not a file)   — async search match count
+  3. Implicit come-from keyword — async preview of <<< source note
+
+CALLBACK is as in `eldoc-documentation-functions'."
+  (let ((keyword (howm-eldoc-keyword-at-point)))
+    (cond
+     ;; Case 1 & 2: >>> ref link
+     (keyword
+      (let ((filepath (howm-eldoc-resolve-file keyword)))
+        (if filepath
+            ;; Case 1: file exists — synchronous preview
+            (when-let* ((preview (howm-eldoc-preview filepath)))
+              (funcall callback preview)
+              t)
+          ;; Case 2: not a file — async search count
+          (howm-eldoc--async-search keyword callback
+                                    #'howm-eldoc--format-search-count))))
+     ;; Case 3: implicit come-from keyword
+     ((when-let* ((implicit (howm-eldoc-implicit-keyword-at-point)))
+        (howm-eldoc--async-search implicit callback
+                                  #'howm-eldoc--format-comefrom-preview))))))
 
 ;;;###autoload
 (define-minor-mode howm-eldoc-mode
