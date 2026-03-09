@@ -38,6 +38,9 @@
 (require 'howm)
 (require 'eldoc)
 
+(defvar howm-eldoc--cache (make-hash-table :test #'equal)
+  "Cache hash-table mapping FILEPATH to (MODTIME . PREVIEW-STRING).")
+
 (defgroup howm-eldoc nil
   "Eldoc preview for howm ref links."
   :group 'howm)
@@ -54,9 +57,6 @@
   :set (lambda (sym val)
          (set-default-toplevel-value sym val)
          (clrhash howm-eldoc--cache)))
-
-(defvar howm-eldoc--cache (make-hash-table :test #'equal)
-  "Cache hash-table mapping FILEPATH to (MODTIME . PREVIEW-STRING).")
 
 (defun howm-eldoc--cache-get (filepath)
   "Return cached preview for FILEPATH if still valid, else nil."
