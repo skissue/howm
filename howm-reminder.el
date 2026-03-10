@@ -615,25 +615,34 @@ Return true if E1 has higher priority than E2."
 (defun howm-todo-priority-deadline (late lz _item)
   (let ((r (howm-todo-relative-late late lz
                                     howm-todo-priority-deadline-laziness))
-        (c (- howm-todo-priority-deadline-init))
-        (d (- (howm-reminder-schedule-interval-to)))
-        (top howm-todo-priority-deadline-top)
-        (bot howm-todo-priority-deadline-bottom))
-    ;; I dare to use late in the first case below so that
-    ;; deadline behaves like schedule after its deadline date.
-    (cond ((< d late) (+ top late))
-          ((< r -1) (+ bot r))
-          (t (* c r)))))
+        (c (- howm-todo-priority-deadline-init)))
+    (if howm-reminder-schedule-interval
+        (let ((d (- (howm-reminder-schedule-interval-to)))
+              (top howm-todo-priority-deadline-top)
+              (bot howm-todo-priority-deadline-bottom))
+          ;; I dare to use late in the first case below so that
+          ;; deadline behaves like schedule after its deadline date.
+          (cond ((< d late) (+ top late))
+                ((< r -1) (+ bot r))
+                (t (* c r))))
+      (cond ((> r 0) (+ r howm-todo-priority-deadline-top))
+            ((< r -1) (+ r howm-todo-priority-deadline-bottom))
+            (t (* c r))))))
 
 (defun howm-todo-priority-schedule (late lz _item)
-  (let ((lazy (or lz howm-todo-priority-schedule-laziness))
-        (from (howm-reminder-schedule-interval-from))
-        (to   (howm-reminder-schedule-interval-to))
-        (top  howm-todo-priority-schedule-top)
-        (bot  howm-todo-priority-schedule-bottom))
-    (cond ((< late (- to))        (+ bot late))
-          ((< late (+ from lazy)) (+ top late))
-          (t (+ bot late)))))
+  (if howm-reminder-schedule-interval
+      (let ((lazy (or lz howm-todo-priority-schedule-laziness))
+            (from (howm-reminder-schedule-interval-from))
+            (to   (howm-reminder-schedule-interval-to))
+            (top  howm-todo-priority-schedule-top)
+            (bot  howm-todo-priority-schedule-bottom))
+        (cond ((< late (- to))        (+ bot late))
+              ((< late (+ from lazy)) (+ top late))
+              (t (+ bot late))))
+    (let ((r (howm-todo-relative-late late lz
+                                      howm-todo-priority-schedule-laziness)))
+      (cond ((> r 0) (+ r howm-todo-priority-schedule-bottom))
+            (t r)))))
 
 (defun howm-todo-priority-done (late _lz _item)
   (+ late howm-todo-priority-done-bottom))

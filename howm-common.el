@@ -20,6 +20,7 @@
 ;;--------------------------------------------------------------------
 
 (require 'howm-vars)
+(require 'cl-lib)
 
 (defun howm-cl-remove-duplicates* (&rest args)
   ":from-end version of `remove-duplicates'"
@@ -486,8 +487,10 @@ examples:
   "For internal use. Do not setq this variable.
 Use `howm-with-schedule-interval' instead.")
 (defun howm-reminder-schedule-interval-from ()
+  (cl-assert howm-reminder-schedule-interval)
   (car howm-reminder-schedule-interval))
 (defun howm-reminder-schedule-interval-to ()
+  (cl-assert howm-reminder-schedule-interval)
   (cdr howm-reminder-schedule-interval))
 (defmacro howm-with-schedule-interval (interval &rest body)
   "Set the interval of visible schedule items in reminder list on menu.
