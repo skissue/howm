@@ -132,7 +132,7 @@ Regexp R1 is replaced by T1 if T1 is a string.
   '(
     (("%eval%\\(.*$\\)" 1) howm-menu-eval previous)
     (("%call%\\(.*$\\)" 1) howm-menu-call previous)
-     ))
+    ))
 
 ;;; which is opened as menu?
 
@@ -393,7 +393,7 @@ When this is nil, delete-region is used instead, and bug appears.")
     (let* ((s-buf (if (eq onbuf 'current) 'cur 'prev))
            (s-switch `(switch-to-buffer ,s-buf))
            (s-apply `(apply #',func ,(if args 'a nil))))
-;;            (s-apply `(apply #',func ,(if args '(list a) nil))))
+      ;;            (s-apply `(apply #',func ,(if args '(list a) nil))))
       (let* ((s-body (if switch-p
                          `(progn ,s-switch ,s-apply)
                        `(with-current-buffer ,s-buf ,s-apply))))
@@ -453,7 +453,7 @@ When this is nil, delete-region is used instead, and bug appears.")
       (setq howm-menu-shortcut-assoc
             (cons (cons key p) howm-menu-shortcut-assoc))
       (define-key howm-menu-mode-local-map key
-        (howm-menu-shortcut-func key p move-only)))
+                  (howm-menu-shortcut-func key p move-only)))
     (when (member key *howm-menu-shortcut-keys*)
       (setq *howm-menu-shortcut-multidef-keys*
             (cons key *howm-menu-shortcut-multidef-keys*)))
@@ -646,7 +646,7 @@ When this is nil, delete-region is used instead, and bug appears.")
          (expr (read (buffer-substring-no-properties expr-beg expr-end))))
     (cond ((symbolp expr) (howm-menu-here-var expr beg expr-end))
           ((listp expr) (howm-menu-here-func (car expr) (cdr expr)
-                                              beg expr-end))
+                                             beg expr-end))
           (t (message "Unknown expr: %s" expr)))))
 
 (defun howm-menu-here-var (expr beg end)
@@ -655,7 +655,7 @@ When this is nil, delete-region is used instead, and bug appears.")
     (message "Unknown symbol: %s" expr)))
 
 (defun howm-menu-here-func (func args beg end)
-;;   (let ((allowed (or (eq howm-menu-allow t) (member func howm-menu-allow))))
+  ;;   (let ((allowed (or (eq howm-menu-allow t) (member func howm-menu-allow))))
   (let ((allowed (member func howm-menu-allow)))
     (cond ((not allowed) (message "Not allowed: %s" func))
           ((not (fboundp func)) (message "Unknown function: %s" func))
@@ -732,7 +732,7 @@ ITEM-LIST is list of items which should be shown."
                        (format howm-menu-todo-priority-format
                                (howm-todo-priority item))
                      ""))
-         (h (format "%s%3s%s" dow-str late priority)))
+         (h (format howm-menu-reminder-prefix-format dow-str late priority)))
     (howm-menu-list-format h (howm-item-summary item) item
                            howm-menu-reminder-format)))
 
@@ -906,8 +906,8 @@ If you don't like misc. category, try
          (classifier (lambda (item)
                        (let ((s (howm-item-summary item)))
                          (or (cl-find-if (lambda (c)
-                                                (funcall matcher c s item))
-                                              categories)
+                                           (funcall matcher c s item))
+                                         categories)
                              (if omit-misc-p nil "misc.")))))
          (pos (lambda (c) (or (cl-position c categories) howm-infinity)))
          (comparer (lambda (a b) (< (funcall pos a) (funcall pos b)))))
@@ -1005,7 +1005,7 @@ If you don't like misc. category, try
   (if howm-menu-invisible
       (put-text-property beg end 'invisible t)
     (delete-region beg end))
-;;   (put-text-property beg end 'intangible t)
+  ;;   (put-text-property beg end 'intangible t)
   )
 
 ;;; howm-menu.el ends here

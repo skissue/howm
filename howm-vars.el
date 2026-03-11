@@ -470,6 +470,15 @@ When it is nil, `howm-view-title-regexp' is used."
   :group 'howm-title
   :group 'howm-menu-reminder)
 
+(defcustom howm-menu-reminder-prefix-format "%s%3s%s"
+  "*Format for reminder prefix in menu.
+This format string receives three arguments:
+  1. Day-of-week string
+  2. Days late (integer)
+  3. Priority string (may be empty)"
+  :type 'string
+  :group 'howm-menu-reminder)
+
 (defcustom howm-menu-todo-priority-format nil
   "*Format for priority display in todo list in menu, or nil for no display."
   :type '(radio (const :tag "Off" nil)
