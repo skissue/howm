@@ -61,6 +61,93 @@ Uses characters like │ ─ ┬ ┼ ▼ ◀─▶ instead of | - + V <->."
   :type 'boolean
   :group 'howm-context-map)
 
+(defcustom howm-context-map-context-line-format 'auto
+  "How to recognize a context (backlink) line in a howm note.
+Only grep hits whose matched line satisfies this pattern are
+counted as children in the context map.
+
+Possible values:
+
+  `auto'     Build the regexp automatically at runtime from
+             `howm-dtime-format' and `howm-ref-header'.
+             This is the recommended default and works with
+             howm-org, howm-markdown, and the standard format.
+
+  STRING     A regexp format string.  Two `%s' placeholders are
+             substituted in order: (1) a regexp matching any
+             timestamp in `howm-dtime-format', (2) the
+             `regexp-quote'd abbreviated file path.
+             The default `auto' value is equivalent to:
+               \"^%s %s %s$\"
+             with the ref-header between the two generated parts.
+
+  FUNCTION   Called with one argument, the abbreviated file path
+             (not regexp-quoted).  Must return a regexp that
+             matches a context line referencing that file."
+  :type '(choice (const :tag "Auto (from howm-dtime-format)" auto)
+                 (string :tag "Regexp format (two %s: timestamp-re, file-re)")
+                 (function :tag "Function (file-path → regexp)"))
+  :group 'howm-context-map)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; context-line matching
+
+(defconst howm-context-map--dtime-spec-alist
+  '(("%Y" . "[0-9]\\{4\\}")
+    ("%m" . "[0-9]\\{2\\}")
+    ("%d" . "[0-9]\\{2\\}")
+    ("%H" . "[0-9]\\{2\\}")
+    ("%M" . "[0-9]\\{2\\}")
+    ("%S" . "[0-9]\\{2\\}")
+    ("%a" . "[A-Za-z]+")
+    ("%A" . "[A-Za-z]+")
+    ("%b" . "[A-Za-z]+")
+    ("%B" . "[A-Za-z]+")
+    ("%p" . "[A-Za-z]+")
+    ("%Z" . "[A-Za-z/]+"))
+  "Alist mapping `format-time-string' directives to Emacs regexps.")
+
+(defun howm-context-map--dtime-format-to-regexp (fmt)
+  "Convert a `format-time-string' format FMT to a regexp.
+Known %-directives are replaced with character-class patterns;
+all literal text is `regexp-quote'd."
+  (let ((pos 0)
+        parts)
+    (while (string-match "%[A-Za-z]" fmt pos)
+      (let* ((ms (match-beginning 0))
+             (me (match-end 0))
+             (literal (substring fmt pos ms))
+             (spec (match-string 0 fmt))
+             (replacement (cdr (assoc spec
+                                      howm-context-map--dtime-spec-alist))))
+        (push (regexp-quote literal) parts)
+        (push (or replacement (regexp-quote spec)) parts)
+        (setq pos me)))
+    (push (regexp-quote (substring fmt pos)) parts)
+    (apply #'concat (nreverse parts))))
+
+(defun howm-context-map--context-line-regexp (abbrev-path)
+  "Return a regexp matching a context line that references ABBREV-PATH.
+Consults `howm-context-map-context-line-format' to determine the
+pattern.  ABBREV-PATH is the `abbreviate-file-name' of the target."
+  (let ((fmt howm-context-map-context-line-format))
+    (cond
+     ((eq fmt 'auto)
+      (concat "^"
+              (howm-context-map--dtime-format-to-regexp howm-dtime-format)
+              " "
+              (regexp-quote howm-ref-header)
+              " +"
+              (regexp-quote abbrev-path)
+              "$"))
+     ((stringp fmt)
+      (format fmt
+              (howm-context-map--dtime-format-to-regexp howm-dtime-format)
+              (regexp-quote abbrev-path)))
+     ((functionp fmt)
+      (funcall fmt abbrev-path))
+     (t (error "Invalid `howm-context-map-context-line-format': %S" fmt)))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; data gathering
 
@@ -115,14 +202,20 @@ Each element is an expanded file path."
 
 (defun howm-context-map-children (file)
   "Find children of FILE: notes containing a context link to FILE.
-Returns list of expanded file paths."
+Returns list of expanded file paths.
+Grep hits are filtered by `howm-context-map-context-line-format'
+so that only lines matching the context-link pattern are counted."
   (let* ((target (expand-file-name file))
-         (search-str (concat howm-ref-header " " (abbreviate-file-name target)))
-         (items (howm-folder-grep (howm-folder) search-str t)))
+         (abbrev-target (abbreviate-file-name target))
+         (search-str (concat howm-ref-header " " abbrev-target))
+         (items (howm-folder-grep (howm-folder) search-str t))
+         (context-re (howm-context-map--context-line-regexp abbrev-target)))
     (delete-dups
      (cl-loop for item in items
               for name = (expand-file-name (howm-item-name item))
-              unless (string= name target)
+              unless (or (string= name target)
+                         (not (string-match-p context-re
+                                              (howm-item-summary item))))
               collect name))))
 
 (defun howm-context-map-siblings (file)
@@ -138,29 +231,69 @@ Returns (prev . next) where each is a file path or nil."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; formatting helpers
 
+(defconst howm-context-map--node-h 3
+  "Height in rows of a single node box.")
+
+(defconst howm-context-map--node-mid 1
+  "Row offset of the middle (title) line within a node box.")
+
 (defun howm-context-map--title-width (canvas-width)
   "Compute title display width from CANVAS-WIDTH.
 Must allow 3 labels + 2 arrows (\" <-> \") to fit on one row."
-  (let ((w (min (/ (- canvas-width 10) 3)   ; 3 labels + 2×5-char arrows
-                howm-context-map-max-title-width)))
+  (let* ((arrow-w (* 2 (string-width (howm-context-map--char 'friend))))
+         (w (min (/ (- canvas-width arrow-w) 3)
+                 howm-context-map-max-title-width)))
     (max howm-context-map-min-title-width w)))
 
 (defun howm-context-map--format-node (title current-p tw)
-  "Format a node string. TITLE is truncated to TW display columns."
-  (let* ((prefix (if howm-context-map-unicode
-                     (if current-p "┃★ " "┃")
-                   (if current-p "[* " "[")))
-         (suffix (if howm-context-map-unicode "┃" "]"))
-         (inner-w (- tw (string-width prefix) (string-width suffix)))
-         (truncated (truncate-string-to-width title (max 1 inner-w) nil nil t)))
-    (concat prefix truncated suffix)))
+  "Format a node as a 3-row box.
+Return a plist (:lines (TOP MID BOT) :w WIDTH).
+TW is the total box width including borders."
+  (let* ((tl  (howm-context-map--char 'box-tl))
+         (tr  (howm-context-map--char 'box-tr))
+         (bl  (howm-context-map--char 'box-bl))
+         (br  (howm-context-map--char 'box-br))
+         (h   (howm-context-map--char 'hline))
+         (v   (howm-context-map--char 'vline))
+         (inner-w (- tw 2))
+         (hfill (make-string inner-w h))
+         (top (concat (string tl) hfill (string tr)))
+         (bot (concat (string bl) hfill (string br)))
+         (marker (if current-p
+                     (if howm-context-map-unicode "★ " "* ")
+                   ""))
+         (marker-w (string-width marker))
+         (text-w (max 1 (- inner-w marker-w)))
+         (truncated (truncate-string-to-width title text-w nil nil t))
+         (pad (make-string (max 0 (- text-w (string-width truncated))) ?\s))
+         (mid (concat (string v) marker truncated pad (string v))))
+    (list :lines (list top mid bot) :w tw)))
 
 (defun howm-context-map--format-overflow (count tw)
-  "Format an overflow indicator."
-  (let ((fmt (if howm-context-map-unicode
-                 (format "┃… (%d more)┃" count)
-               (format "[... (%d more)]" count))))
-    (truncate-string-to-width fmt tw nil nil "...")))
+  "Format an overflow indicator as a 3-row box.
+Return a plist (:lines (TOP MID BOT) :w WIDTH)."
+  (let* ((tl  (howm-context-map--char 'box-tl))
+         (tr  (howm-context-map--char 'box-tr))
+         (bl  (howm-context-map--char 'box-bl))
+         (br  (howm-context-map--char 'box-br))
+         (h   (howm-context-map--char 'hline))
+         (v   (howm-context-map--char 'vline))
+         (inner-w (- tw 2))
+         (hfill (make-string inner-w h))
+         (top (concat (string tl) hfill (string tr)))
+         (bot (concat (string bl) hfill (string br)))
+         (text (format "… (%d more)" count))
+         (truncated (truncate-string-to-width text (max 1 inner-w) nil nil t))
+         (pad (make-string (max 0 (- inner-w (string-width truncated))) ?\s))
+         (mid (concat (string v) truncated pad (string v))))
+    (list :lines (list top mid bot) :w tw)))
+
+(defun howm-context-map--draw-node (x y node)
+  "Draw NODE (a plist from `--format-node' or `--format-overflow')
+at canvas position (X, Y).  Draws 3 lines at y, y+1, y+2."
+  (cl-loop for line in (plist-get node :lines)
+           for row from y
+           do (howm-context-map--draw-text x row line)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; character sets (ASCII vs Unicode)
@@ -177,6 +310,10 @@ box-drawing character; otherwise return the ASCII equivalent."
         ('top-junc   ?┬)
         ('arrow-down ?▼)
         ('friend     " ◀──▶ ")
+        ('box-tl     ?┌)
+        ('box-tr     ?┐)
+        ('box-bl     ?└)
+        ('box-br     ?┘)
         (_ (error "Unknown drawing char: %s" name)))
     (pcase name
       ('vline      ?|)
@@ -185,6 +322,10 @@ box-drawing character; otherwise return the ASCII equivalent."
       ('top-junc   ?+)
       ('arrow-down ?V)
       ('friend     " <-> ")
+      ('box-tl     ?+)
+      ('box-tr     ?+)
+      ('box-bl     ?+)
+      ('box-br     ?+)
       (_ (error "Unknown drawing char: %s" name)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -239,6 +380,8 @@ CH may be a character or a symbol resolved via `howm-context-map--char'."
          (w (max (window-body-width (get-buffer-window (current-buffer) t)) 60))
          (tw (howm-context-map--title-width w))
          (cx (/ w 2))
+         (nh howm-context-map--node-h)
+         (nm howm-context-map--node-mid)
          ;; gather data
          (ancestors (howm-context-map-ancestors target))
          (children (howm-context-map-children target))
@@ -257,17 +400,18 @@ CH may be a character or a symbol resolved via `howm-context-map--char'."
                          (cl-subseq children 0 show-children)))
          ;; compute height
          (y 0)
-         (ancestor-rows (+ (if (> ancestor-overflow 0) 2 0)
-                           (* show-ancestors 2)))
+         (ancestor-rows (+ (if (> ancestor-overflow 0) (1+ nh) 0)
+                           (* show-ancestors (1+ nh))))
          (current-row ancestor-rows)
          (children-rows (if (> show-children 0)
-                            (+ 3 (if (> children-overflow 0) 1 0))
+                            (+ 3 nh
+                               (if (> children-overflow 0) nh 0))
                           0))
-         (total-height (+ current-row 1 children-rows 1))
+         (total-height (+ current-row nh children-rows 1))
          ;; format current node
          (cur-title (howm-context-map-get-title target))
-         (cur-label (howm-context-map--format-node cur-title t tw))
-         (cur-w (string-width cur-label)))
+         (cur-node (howm-context-map--format-node cur-title t tw))
+         (cur-w (plist-get cur-node :w)))
 
     ;; init canvas
     (howm-context-map--canvas-init w total-height)
@@ -275,21 +419,22 @@ CH may be a character or a symbol resolved via `howm-context-map--char'."
     ;; === ANCESTORS (vertical chain) ===
     (setq y 0)
     (when (> ancestor-overflow 0)
-      (let* ((overflow-label (howm-context-map--format-overflow
-                              ancestor-overflow tw))
-             (ox (max 0 (- cx (/ (string-width overflow-label) 2)))))
-        (howm-context-map--draw-text ox y overflow-label)
-        (setq y (1+ y))
+      (let* ((overflow-node (howm-context-map--format-overflow
+                             ancestor-overflow tw))
+             (ow (plist-get overflow-node :w))
+             (ox (max 0 (- cx (/ ow 2)))))
+        (howm-context-map--draw-node ox y overflow-node)
+        (setq y (+ y nh))
         (howm-context-map--put-char cx y 'vline)
         (setq y (1+ y))))
 
     (dolist (afile vis-ancestors)
       (let* ((title (howm-context-map-get-title afile))
-             (label (howm-context-map--format-node title nil tw))
-             (lw (string-width label))
-             (lx (max 0 (- cx (/ lw 2)))))
-        (howm-context-map--draw-text lx y label)
-        (setq y (1+ y))
+             (node (howm-context-map--format-node title nil tw))
+             (nw (plist-get node :w))
+             (lx (max 0 (- cx (/ nw 2)))))
+        (howm-context-map--draw-node lx y node)
+        (setq y (+ y nh))
         (howm-context-map--put-char cx y 'vline)
         (setq y (1+ y))))
 
@@ -298,45 +443,44 @@ CH may be a character or a symbol resolved via `howm-context-map--char'."
       (howm-context-map--put-char cx (1- y) 'arrow-down))
 
     ;; === CURRENT ROW with FRIENDS (prev/next) ===
-    ;; Draw left-to-right to avoid position drift from delete/insert.
     (setq y current-row)
     (let* ((cur-x (max 0 (- cx (/ cur-w 2))))
            (cur-end (+ cur-x cur-w))
            (arrow (howm-context-map--char 'friend))
            (arrow-w (string-width arrow)))
 
-      ;; draw prev (left friend) first
+      ;; draw prev (left friend) first — all 3 rows of the box
       (when prev-file
         (let* ((prev-title (howm-context-map-get-title prev-file))
-               (prev-label (howm-context-map--format-node prev-title nil tw))
-               (prev-w (string-width prev-label))
+               (prev-node (howm-context-map--format-node prev-title nil tw))
+               (prev-w (plist-get prev-node :w))
                (prev-end (- cur-x arrow-w))
                (prev-x (max 0 (- prev-end prev-w))))
           (when (>= prev-end 0)
-            (howm-context-map--draw-text prev-x y prev-label)
-            (howm-context-map--draw-text (+ prev-x prev-w) y arrow))))
+            (howm-context-map--draw-node prev-x y prev-node)
+            (howm-context-map--draw-text (+ prev-x prev-w) (+ y nm) arrow))))
 
-      ;; draw current label
-      (howm-context-map--draw-text cur-x y cur-label)
+      ;; draw current node box
+      (howm-context-map--draw-node cur-x y cur-node)
 
-      ;; draw next (right friend)
+      ;; draw next (right friend) — all 3 rows of the box
       (when next-file
         (let* ((next-title (howm-context-map-get-title next-file))
-               (next-label (howm-context-map--format-node next-title nil tw))
-               (next-w (string-width next-label))
+               (next-node (howm-context-map--format-node next-title nil tw))
+               (next-w (plist-get next-node :w))
                (next-x (+ cur-end arrow-w)))
-          (when (< (+ next-x next-w) w)
-            (howm-context-map--draw-text cur-end y arrow)
-            (howm-context-map--draw-text next-x y next-label)))))
+          (when (<= (+ next-x next-w) w)
+            (howm-context-map--draw-text cur-end (+ y nm) arrow)
+            (howm-context-map--draw-node next-x y next-node)))))
 
     ;; === CHILDREN (inverted wire diagram below current) ===
     (when (> show-children 0)
-      (let* ((child-labels
+      (let* ((child-nodes
               (mapcar (lambda (cf)
                         (howm-context-map--format-node
                          (howm-context-map-get-title cf) nil tw))
                       vis-children))
-             (child-widths (mapcar #'string-width child-labels))
+             (child-widths (mapcar (lambda (n) (plist-get n :w)) child-nodes))
              (n show-children)
              (total-label-w (apply #'+ child-widths))
              (gap (if (> n 1)
@@ -353,8 +497,10 @@ CH may be a character or a symbol resolved via `howm-context-map--char'."
         (let* ((child-centers (mapcar #'cdr child-positions))
                (bus-left (apply #'min child-centers))
                (bus-right (apply #'max child-centers))
-               (y-pipe (+ current-row 1))
-               (y-rail (+ current-row 2)))
+               (y-pipe (+ current-row nh))
+               (y-rail (+ y-pipe 1))
+               (y-drop (+ y-rail 1))
+               (y-child-top (+ y-drop 1)))
 
           ;; vertical pipe from current down to rail
           (howm-context-map--put-char cx y-pipe 'vline)
@@ -369,21 +515,21 @@ CH may be a character or a symbol resolved via `howm-context-map--char'."
           ;; junctions and drops at each child center
           (dolist (cc child-centers)
             (howm-context-map--put-char cc y-rail 'junction)
-            (howm-context-map--put-char cc (+ y-rail 1) 'vline))
+            (howm-context-map--put-char cc y-drop 'vline))
 
-          ;; child labels (row below drops)
-          (cl-loop with y-labels = (+ y-rail 2)
-                   for pos in child-positions
-                   for label in child-labels
-                   do (howm-context-map--draw-text (car pos) y-labels label))
+          ;; child node boxes
+          (cl-loop for pos in child-positions
+                   for node in child-nodes
+                   do (howm-context-map--draw-node (car pos) y-child-top node))
 
           ;; children overflow
           (when (> children-overflow 0)
-            (let* ((y-overflow (+ y-rail 3))
-                   (overflow-label (howm-context-map--format-overflow
-                                    children-overflow tw))
-                   (ox (max 0 (- cx (/ (string-width overflow-label) 2)))))
-              (howm-context-map--draw-text ox y-overflow overflow-label))))))
+            (let* ((y-overflow (+ y-child-top nh))
+                   (overflow-node (howm-context-map--format-overflow
+                                   children-overflow tw))
+                   (ow (plist-get overflow-node :w))
+                   (ox (max 0 (- cx (/ ow 2)))))
+              (howm-context-map--draw-node ox y-overflow overflow-node))))))
 
     ;; trim trailing whitespace from each line
     (goto-char (point-min))
