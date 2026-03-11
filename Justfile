@@ -6,7 +6,7 @@ el_files := "howm.el howm-menu.el howm-reminder.el howm-date.el howm-misc.el \
     howm-menu-en.el howm-menu-fr.el howm-menu-ja.el \
     honest-report.el action-lock.el riffle.el gfunc.el illusion.el \
     iigrep.el \
-    howm-eldoc.el"
+    howm-eldoc.el howm-map.el"
 
 # Run the interactive test suite
 test:
