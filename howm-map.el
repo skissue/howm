@@ -73,19 +73,19 @@ Possible values:
              This is the recommended default and works with
              howm-org, howm-markdown, and the standard format.
 
-  STRING     A regexp format string.  Two `%s' placeholders are
+  STRING     A regexp format string.  Three `%s' placeholders are
              substituted in order: (1) a regexp matching any
              timestamp in `howm-dtime-format', (2) the
+             `regexp-quote'd `howm-ref-header', (3) the
              `regexp-quote'd abbreviated file path.
              The default `auto' value is equivalent to:
                \"^%s %s %s$\"
-             with the ref-header between the two generated parts.
 
   FUNCTION   Called with one argument, the abbreviated file path
              (not regexp-quoted).  Must return a regexp that
              matches a context line referencing that file."
   :type '(choice (const :tag "Auto (from howm-dtime-format)" auto)
-                 (string :tag "Regexp format (two %s: timestamp-re, file-re)")
+                 (string :tag "Regexp format (three %s: timestamp-re, ref-header-re, file-re)")
                  (function :tag "Function (file-path → regexp)"))
   :group 'howm-context-map)
 
@@ -137,12 +137,13 @@ pattern.  ABBREV-PATH is the `abbreviate-file-name' of the target."
               (howm-context-map--dtime-format-to-regexp howm-dtime-format)
               " "
               (regexp-quote howm-ref-header)
-              " +"
+              " "
               (regexp-quote abbrev-path)
               "$"))
      ((stringp fmt)
       (format fmt
               (howm-context-map--dtime-format-to-regexp howm-dtime-format)
+              (regexp-quote howm-ref-header)
               (regexp-quote abbrev-path)))
      ((functionp fmt)
       (funcall fmt abbrev-path))
