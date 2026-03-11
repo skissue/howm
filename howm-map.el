@@ -55,6 +55,12 @@
   :type 'integer
   :group 'howm-context-map)
 
+(defcustom howm-context-map-unicode nil
+  "When non-nil, use Unicode box-drawing characters for the context map.
+Uses characters like │ ─ ┬ ┼ ▼ ◀─▶ instead of | - + V <->."
+  :type 'boolean
+  :group 'howm-context-map)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; data gathering
 
@@ -141,16 +147,45 @@ Must allow 3 labels + 2 arrows (\" <-> \") to fit on one row."
 
 (defun howm-context-map--format-node (title current-p tw)
   "Format a node string. TITLE is truncated to TW display columns."
-  (let* ((prefix (if current-p "[* " "["))
-         (suffix "]")
+  (let* ((prefix (if howm-context-map-unicode
+                     (if current-p "┃★ " "┃")
+                   (if current-p "[* " "[")))
+         (suffix (if howm-context-map-unicode "┃" "]"))
          (inner-w (- tw (string-width prefix) (string-width suffix)))
          (truncated (truncate-string-to-width title (max 1 inner-w) nil nil t)))
     (concat prefix truncated suffix)))
 
 (defun howm-context-map--format-overflow (count tw)
   "Format an overflow indicator."
-  (truncate-string-to-width (format "[... (%d more)]" count)
-                            tw nil nil "..."))
+  (let ((fmt (if howm-context-map-unicode
+                 (format "┃… (%d more)┃" count)
+               (format "[... (%d more)]" count))))
+    (truncate-string-to-width fmt tw nil nil "...")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; character sets (ASCII vs Unicode)
+
+(defun howm-context-map--char (name)
+  "Return the drawing character for NAME.
+When `howm-context-map-unicode' is non-nil, return a Unicode
+box-drawing character; otherwise return the ASCII equivalent."
+  (if howm-context-map-unicode
+      (pcase name
+        ('vline      ?│)
+        ('hline      ?─)
+        ('junction   ?┼)
+        ('top-junc   ?┬)
+        ('arrow-down ?▼)
+        ('friend     " ◀──▶ ")
+        (_ (error "Unknown drawing char: %s" name)))
+    (pcase name
+      ('vline      ?|)
+      ('hline      ?-)
+      ('junction   ?+)
+      ('top-junc   ?+)
+      ('arrow-down ?V)
+      ('friend     " <-> ")
+      (_ (error "Unknown drawing char: %s" name)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; canvas drawing primitives (buffer-as-2D-grid)
@@ -168,7 +203,10 @@ Must allow 3 labels + 2 arrows (\" <-> \") to fit on one row."
   (move-to-column x t))
 
 (defun howm-context-map--put-char (x y ch)
-  "Place character CH at display column X, line Y."
+  "Place character CH at display column X, line Y.
+CH may be a character or a symbol resolved via `howm-context-map--char'."
+  (when (symbolp ch)
+    (setq ch (howm-context-map--char ch)))
   (howm-context-map--goto-xy x y)
   (unless (eobp)
     (delete-char (min 1 (- (line-end-position) (point))))
@@ -185,7 +223,10 @@ Overwrites existing content character by character."
            (insert-char ch 1)))
 
 (defun howm-context-map--hline (x1 x2 y ch)
-  "Draw horizontal line of CH from column X1 to X2 (inclusive) on line Y."
+  "Draw horizontal line of CH from column X1 to X2 (inclusive) on line Y.
+CH may be a character or a symbol resolved via `howm-context-map--char'."
+  (when (symbolp ch)
+    (setq ch (howm-context-map--char ch)))
   (cl-loop for x from (min x1 x2) to (max x1 x2)
            do (howm-context-map--put-char x y ch)))
 
@@ -239,7 +280,7 @@ Overwrites existing content character by character."
              (ox (max 0 (- cx (/ (string-width overflow-label) 2)))))
         (howm-context-map--draw-text ox y overflow-label)
         (setq y (1+ y))
-        (howm-context-map--put-char cx y ?|)
+        (howm-context-map--put-char cx y 'vline)
         (setq y (1+ y))))
 
     (dolist (afile vis-ancestors)
@@ -249,19 +290,19 @@ Overwrites existing content character by character."
              (lx (max 0 (- cx (/ lw 2)))))
         (howm-context-map--draw-text lx y label)
         (setq y (1+ y))
-        (howm-context-map--put-char cx y ?|)
+        (howm-context-map--put-char cx y 'vline)
         (setq y (1+ y))))
 
-    ;; Replace last `|` with `V` if ancestors were drawn
+    ;; Replace last connector with down-arrow if ancestors were drawn
     (when (> show-ancestors 0)
-      (howm-context-map--put-char cx (1- y) ?V))
+      (howm-context-map--put-char cx (1- y) 'arrow-down))
 
     ;; === CURRENT ROW with FRIENDS (prev/next) ===
     ;; Draw left-to-right to avoid position drift from delete/insert.
     (setq y current-row)
     (let* ((cur-x (max 0 (- cx (/ cur-w 2))))
            (cur-end (+ cur-x cur-w))
-           (arrow " <-> ")
+           (arrow (howm-context-map--char 'friend))
            (arrow-w (string-width arrow)))
 
       ;; draw prev (left friend) first
@@ -316,19 +357,19 @@ Overwrites existing content character by character."
                (y-rail (+ current-row 2)))
 
           ;; vertical pipe from current down to rail
-          (howm-context-map--put-char cx y-pipe ?|)
+          (howm-context-map--put-char cx y-pipe 'vline)
 
           ;; horizontal rail
           (howm-context-map--hline (min bus-left cx) (max bus-right cx)
-                                   y-rail ?-)
+                                   y-rail 'hline)
 
           ;; junction at center where pipe meets rail
-          (howm-context-map--put-char cx y-rail ?+)
+          (howm-context-map--put-char cx y-rail 'top-junc)
 
           ;; junctions and drops at each child center
           (dolist (cc child-centers)
-            (howm-context-map--put-char cc y-rail ?+)
-            (howm-context-map--put-char cc (+ y-rail 1) ?|))
+            (howm-context-map--put-char cc y-rail 'junction)
+            (howm-context-map--put-char cc (+ y-rail 1) 'vline))
 
           ;; child labels (row below drops)
           (cl-loop with y-labels = (+ y-rail 2)
