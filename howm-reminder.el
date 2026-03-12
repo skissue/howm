@@ -138,11 +138,12 @@ schedules outside the range in %reminder in the menu.")
         (delete-region (point) (line-end-position))
         (insert new)
         (goto-char pos)))))
+
 (defun howm-action-lock-done-done (date type lazy desc &optional done-mark)
   (when (null done-mark)
     (setq done-mark ".")
     (howm-congrats))
-  (concat (howm-reminder-today) done-mark " "
+  (concat (howm-reminder-today nil howm-reminder-done-format) done-mark " "
           date ":" type lazy desc))
 (defun howm-action-lock-done-cancel (date type lazy desc)
   (howm-action-lock-done-done date type lazy desc

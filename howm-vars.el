@@ -336,6 +336,14 @@ Example: (\"play\" \"~/sound/fanfare.wav\") for calling the command
   :type '(repeat string)
   :group 'howm-reminder)
 
+(defcustom howm-reminder-done-format nil
+  "*Format string for the timestamp inserted when marking a reminder as done.
+This is passed to `format-time-string'.  If nil, `howm-reminder-today-format'
+is used."
+  :type '(choice (const :tag "Use howm-reminder-today-format" nil)
+                 (string :tag "Custom format string"))
+  :group 'howm-reminder)
+
 (defcustom howm-reminder-cancel-string "cancel"
   "*This string is inserted automatically when a reminder is canceled."
   :type 'string
