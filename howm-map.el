@@ -330,14 +330,26 @@ When FACE is non-nil, the inserted character is propertized."
 
 (defun howm-map--draw-text (x y str &optional face)
   "Draw STR starting at display column X, line Y.
-Overwrites existing content character by character,
-accounting for multi-column characters.
-When FACE is non-nil, it is applied to each inserted character."
-  (let ((col x))
-    (cl-loop for i from 0 below (length str)
-             for ch = (aref str i)
-             do (howm-map--put-char col y ch face)
-                (cl-incf col (max 1 (char-width ch))))))
+Overwrites existing content in bulk, accounting for multi-column characters.
+When FACE is non-nil, it is applied to the inserted text."
+  (howm-map--goto-xy x y)
+  (let* ((col (current-column))
+         (w (string-width str))
+         (target-col (+ col w))
+         (p1 (point))
+         (deleted 0))
+    (move-to-column target-col)
+    (setq deleted (- (current-column) col))
+    ;; If a wide char straddles the target column, delete it too
+    (when (and (< (current-column) target-col)
+               (not (eolp)))
+      (cl-incf deleted (max 1 (char-width (char-after))))
+      (forward-char 1))
+    (delete-region p1 (point))
+    (insert (if face (propertize str 'face face) str))
+    ;; Pad if we deleted more columns than needed
+    (when (> deleted w)
+      (insert-char ?\s (- deleted w)))))
 
 (defun howm-map--hline (x1 x2 y ch)
   "Draw horizontal line of CH from column X1 to X2 (inclusive) on line Y.
