@@ -35,23 +35,9 @@
   :type 'string
   :group 'howm-map)
 
-(defcustom howm-map-max-ancestors 6
-  "Maximum number of ancestor levels to display before eliding."
-  :type 'integer
-  :group 'howm-map)
-
-(defcustom howm-map-max-children 7
-  "Maximum number of child notes to display."
-  :type 'integer
-  :group 'howm-map)
-
-(defcustom howm-map-min-title-width 18
-  "Minimum display columns for a node title."
-  :type 'integer
-  :group 'howm-map)
-
-(defcustom howm-map-max-title-width 40
-  "Maximum display columns for a node title."
+(defcustom howm-map-title-width 40
+  "Maximum display columns for a node title.
+If a title is shorter, the box shrinks to fit; if longer, truncate."
   :type 'integer
   :group 'howm-map)
 
@@ -196,7 +182,6 @@ Each element is an expanded file path."
            with seen = (list (expand-file-name file))
            for parent = (howm-map-parent current)
            while (and parent (not (member parent seen)))
-           repeat (1+ howm-map-max-ancestors)
            collect parent into ancestors
            do (push parent seen) (setq current parent)
            finally return ancestors))
@@ -238,60 +223,34 @@ Returns (prev . next) where each is a file path or nil."
 (defconst howm-map--node-mid 1
   "Row offset of the middle (title) line within a node box.")
 
-(defun howm-map--title-width (canvas-width)
-  "Compute title display width from CANVAS-WIDTH.
-Must allow 3 labels + 2 arrows (\" <-> \") to fit on one row."
-  (let* ((arrow-w (* 2 (string-width (howm-map--char 'friend))))
-         (w (min (/ (- canvas-width arrow-w) 3)
-                 howm-map-max-title-width)))
-    (max howm-map-min-title-width w)))
-
-(defun howm-map--format-node (title current-p tw)
-  "Format a node as a 3-row box.
+(defun howm-map--format-node (title current-p)
+  "Format a node as a 3-row box with variable width.
 Return a plist (:lines (TOP MID BOT) :w WIDTH).
-TW is the total box width including borders."
+Box width shrinks to fit TITLE, capped at `howm-map-title-width'."
   (let* ((tl  (howm-map--char 'box-tl))
          (tr  (howm-map--char 'box-tr))
          (bl  (howm-map--char 'box-bl))
          (br  (howm-map--char 'box-br))
          (h   (howm-map--char 'hline))
          (v   (howm-map--char 'vline))
-         (inner-w (- tw 2))
-         (hfill (make-string inner-w h))
-         (top (concat (string tl) hfill (string tr)))
-         (bot (concat (string bl) hfill (string br)))
          (marker (if current-p
                      (if howm-map-unicode "★ " "* ")
                    ""))
          (marker-w (string-width marker))
-         (text-w (max 1 (- inner-w marker-w)))
-         (truncated (truncate-string-to-width title text-w nil nil t))
-         (pad (make-string (max 0 (- text-w (string-width truncated))) ?\s))
-         (mid (concat (string v) marker truncated pad (string v))))
-    (list :lines (list top mid bot) :w tw)))
-
-(defun howm-map--format-overflow (count tw)
-  "Format an overflow indicator as a 3-row box.
-Return a plist (:lines (TOP MID BOT) :w WIDTH)."
-  (let* ((tl  (howm-map--char 'box-tl))
-         (tr  (howm-map--char 'box-tr))
-         (bl  (howm-map--char 'box-bl))
-         (br  (howm-map--char 'box-br))
-         (h   (howm-map--char 'hline))
-         (v   (howm-map--char 'vline))
-         (inner-w (- tw 2))
+         (max-text-w (max 1 (- howm-map-title-width marker-w)))
+         (truncated (truncate-string-to-width title max-text-w nil nil t))
+         (text-w (string-width truncated))
+         (inner-w (+ marker-w text-w))
+         (tw (+ inner-w 2))
          (hfill (make-string inner-w h))
          (top (concat (string tl) hfill (string tr)))
          (bot (concat (string bl) hfill (string br)))
-         (text (format "… (%d more)" count))
-         (truncated (truncate-string-to-width text (max 1 inner-w) nil nil t))
-         (pad (make-string (max 0 (- inner-w (string-width truncated))) ?\s))
-         (mid (concat (string v) truncated pad (string v))))
+         (mid (concat (string v) marker truncated (string v))))
     (list :lines (list top mid bot) :w tw)))
 
 (defun howm-map--draw-node (x y node)
-  "Draw NODE (a plist from `--format-node' or `--format-overflow')
-at canvas position (X, Y).  Draws 3 lines at y, y+1, y+2."
+  "Draw NODE (a plist from `--format-node') at position (X, Y).
+Draws 3 lines at y, y+1, y+2."
   (cl-loop for line in (plist-get node :lines)
            for row from y
            do (howm-map--draw-text x row line)))
@@ -332,37 +291,44 @@ box-drawing character; otherwise return the ASCII equivalent."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; canvas drawing primitives (buffer-as-2D-grid)
 
-(defun howm-map--canvas-init (width height)
-  "Fill current buffer with HEIGHT lines of WIDTH spaces."
-  (erase-buffer)
-  (dotimes (_ height)
-    (insert (make-string width ?\s) "\n")))
-
 (defun howm-map--goto-xy (x y)
-  "Move point to display column X on line Y (0-indexed)."
+  "Move point to column X on line Y, expanding buffer as needed."
+  (goto-char (point-max))
+  (let ((current-lines (count-lines (point-min) (point-max))))
+    (when (< current-lines (1+ y))
+      (insert (make-string (- (1+ y) current-lines) ?\n))))
   (goto-char (point-min))
   (forward-line y)
   (move-to-column x t))
 
 (defun howm-map--put-char (x y ch)
   "Place character CH at display column X, line Y.
-CH may be a character or a symbol resolved via `howm-map--char'."
+CH may be a character or a symbol resolved via `howm-map--char'.
+Handles multi-column characters correctly."
   (when (symbolp ch)
     (setq ch (howm-map--char ch)))
   (howm-map--goto-xy x y)
-  (unless (eobp)
-    (delete-char (min 1 (- (line-end-position) (point))))
-    (insert-char ch 1)))
+  (let* ((new-w (max 1 (char-width ch)))
+         (deleted 0))
+    ;; delete enough existing columns to make room for new-w columns
+    (while (and (< (point) (line-end-position))
+                (< deleted new-w))
+      (cl-incf deleted (max 1 (char-width (char-after))))
+      (delete-char 1))
+    (insert-char ch 1)
+    ;; if we deleted more columns than needed, pad with spaces
+    (when (> deleted new-w)
+      (insert-char ?\s (- deleted new-w)))))
 
 (defun howm-map--draw-text (x y str)
   "Draw STR starting at display column X, line Y.
-Overwrites existing content character by character."
-  (howm-map--goto-xy x y)
-  (cl-loop for ch across str
-           unless (eobp) do
-           (when (> (- (line-end-position) (point)) 0)
-             (delete-char 1))
-           (insert-char ch 1)))
+Overwrites existing content character by character,
+accounting for multi-column characters."
+  (let ((col x))
+    (cl-loop for i from 0 below (length str)
+             for ch = (aref str i)
+             do (howm-map--put-char col y ch)
+                (cl-incf col (max 1 (char-width ch))))))
 
 (defun howm-map--hline (x1 x2 y ch)
   "Draw horizontal line of CH from column X1 to X2 (inclusive) on line Y.
@@ -378,9 +344,6 @@ CH may be a character or a symbol resolved via `howm-map--char'."
 (defun howm-map-render (file)
   "Render the context map for FILE into the current buffer."
   (let* ((target (expand-file-name file))
-         (w (max (window-body-width (get-buffer-window (current-buffer) t)) 60))
-         (tw (howm-map--title-width w))
-         (cx (/ w 2))
          (nh howm-map--node-h)
          (nm howm-map--node-mid)
          ;; gather data
@@ -389,113 +352,82 @@ CH may be a character or a symbol resolved via `howm-map--char'."
          (sibling-pair (howm-map-siblings target))
          (prev-file (car sibling-pair))
          (next-file (cdr sibling-pair))
-         ;; limit counts
-         (n-ancestors (length ancestors))
-         (n-children (length children))
-         (show-ancestors (min n-ancestors howm-map-max-ancestors))
-         (show-children (min n-children howm-map-max-children))
-         (ancestor-overflow (- n-ancestors show-ancestors))
-         (children-overflow (- n-children show-children))
-         (vis-ancestors (last ancestors show-ancestors))
-         (vis-children (when (> show-children 0)
-                         (cl-subseq children 0 show-children)))
-         ;; compute height
-         (y 0)
-         (ancestor-rows (+ (if (> ancestor-overflow 0) (1+ nh) 0)
-                           (* show-ancestors (1+ nh))))
-         (current-row ancestor-rows)
-         (children-rows (if (> show-children 0)
-                            (+ 3 nh
-                               (if (> children-overflow 0) nh 0))
-                          0))
-         (total-height (+ current-row nh children-rows 1))
          ;; format current node
          (cur-title (howm-map-get-title target))
-         (cur-node (howm-map--format-node cur-title t tw))
-         (cur-w (plist-get cur-node :w)))
+         (cur-node (howm-map--format-node cur-title t))
+         (cur-w (plist-get cur-node :w))
+         (arrow (howm-map--char 'friend))
+         (arrow-w (string-width arrow))
+         ;; compute cur-x: ensure prev sibling fits to the left
+         (prev-space (if prev-file
+                         (let* ((pw (plist-get
+                                     (howm-map--format-node
+                                      (howm-map-get-title prev-file) nil)
+                                     :w)))
+                           (+ pw arrow-w))
+                       0))
+         (margin 2)
+         (cur-x (+ margin prev-space))
+         (cx (+ cur-x (/ cur-w 2)))
+         (y 0))
 
-    ;; init canvas
-    (howm-map--canvas-init w total-height)
+    (erase-buffer)
 
     ;; === ANCESTORS (vertical chain) ===
-    (setq y 0)
-    (when (> ancestor-overflow 0)
-      (let* ((overflow-node (howm-map--format-overflow
-                             ancestor-overflow tw))
-             (ow (plist-get overflow-node :w))
-             (ox (max 0 (- cx (/ ow 2)))))
-        (howm-map--draw-node ox y overflow-node)
-        (setq y (+ y nh))
-        (howm-map--put-char cx y 'vline)
-        (setq y (1+ y))))
-
-    (dolist (afile vis-ancestors)
+    (dolist (afile ancestors)
       (let* ((title (howm-map-get-title afile))
-             (node (howm-map--format-node title nil tw))
+             (node (howm-map--format-node title nil))
              (nw (plist-get node :w))
-             (lx (max 0 (- cx (/ nw 2)))))
+             (lx (- cx (/ nw 2))))
         (howm-map--draw-node lx y node)
         (setq y (+ y nh))
         (howm-map--put-char cx y 'vline)
         (setq y (1+ y))))
 
     ;; Replace last connector with down-arrow if ancestors were drawn
-    (when (> show-ancestors 0)
+    (when ancestors
       (howm-map--put-char cx (1- y) 'arrow-down))
 
     ;; === CURRENT ROW with FRIENDS (prev/next) ===
-    (setq y current-row)
-    (let* ((cur-x (max 0 (- cx (/ cur-w 2))))
-           (cur-end (+ cur-x cur-w))
-           (arrow (howm-map--char 'friend))
-           (arrow-w (string-width arrow)))
+    (let* ((current-row y)
+           (cur-end (+ cur-x cur-w)))
 
-      ;; draw prev (left friend) first — all 3 rows of the box
+      ;; draw prev (left friend)
       (when prev-file
         (let* ((prev-title (howm-map-get-title prev-file))
-               (prev-node (howm-map--format-node prev-title nil tw))
+               (prev-node (howm-map--format-node prev-title nil))
                (prev-w (plist-get prev-node :w))
-               (prev-end (- cur-x arrow-w))
-               (prev-x (max 0 (- prev-end prev-w))))
-          (when (>= prev-end 0)
-            (howm-map--draw-node prev-x y prev-node)
-            (howm-map--draw-text (+ prev-x prev-w) (+ y nm) arrow))))
+               (prev-x (- cur-x arrow-w prev-w)))
+          (howm-map--draw-node prev-x y prev-node)
+          (howm-map--draw-text (+ prev-x prev-w) (+ y nm) arrow)))
 
       ;; draw current node box
       (howm-map--draw-node cur-x y cur-node)
 
-      ;; draw next (right friend) — all 3 rows of the box
+      ;; draw next (right friend)
       (when next-file
         (let* ((next-title (howm-map-get-title next-file))
-               (next-node (howm-map--format-node next-title nil tw))
-               (next-w (plist-get next-node :w))
+               (next-node (howm-map--format-node next-title nil))
                (next-x (+ cur-end arrow-w)))
-          (when (<= (+ next-x next-w) w)
-            (howm-map--draw-text cur-end (+ y nm) arrow)
-            (howm-map--draw-node next-x y next-node)))))
+          (howm-map--draw-text cur-end (+ y nm) arrow)
+          (howm-map--draw-node next-x y next-node)))
 
-    ;; === CHILDREN (inverted wire diagram below current) ===
-    (when (> show-children 0)
-      (let* ((child-nodes
-              (mapcar (lambda (cf)
-                        (howm-map--format-node
-                         (howm-map-get-title cf) nil tw))
-                      vis-children))
-             (child-widths (mapcar (lambda (n) (plist-get n :w)) child-nodes))
-             (n show-children)
-             (total-label-w (apply #'+ child-widths))
-             (gap (if (> n 1)
-                      (max 2 (/ (max 0 (- w total-label-w)) (1- n)))
-                    0))
-             (block-w (+ total-label-w (* gap (max 0 (1- n)))))
-             (start-x (max 0 (/ (- w block-w) 2)))
-             (child-positions
-              (cl-loop with x = start-x
-                       for cw in child-widths
-                       collect (cons x (+ x (/ cw 2)))
-                       do (cl-incf x (+ cw gap)))))
-
-        (let* ((child-centers (mapcar #'cdr child-positions))
+      ;; === CHILDREN (inverted wire diagram below current) ===
+      (when children
+        (let* ((child-nodes
+                (mapcar (lambda (cf)
+                          (howm-map--format-node (howm-map-get-title cf) nil))
+                        children))
+               (child-widths (mapcar (lambda (n) (plist-get n :w))
+                                     child-nodes))
+               (gap 3)
+               (start-x margin)
+               (child-positions
+                (cl-loop with x = start-x
+                         for cw in child-widths
+                         collect (cons x (+ x (/ cw 2)))
+                         do (cl-incf x (+ cw gap))))
+               (child-centers (mapcar #'cdr child-positions))
                (bus-left (apply #'min child-centers))
                (bus-right (apply #'max child-centers))
                (y-pipe (+ current-row nh))
@@ -521,27 +453,7 @@ CH may be a character or a symbol resolved via `howm-map--char'."
           ;; child node boxes
           (cl-loop for pos in child-positions
                    for node in child-nodes
-                   do (howm-map--draw-node (car pos) y-child-top node))
-
-          ;; children overflow
-          (when (> children-overflow 0)
-            (let* ((y-overflow (+ y-child-top nh))
-                   (overflow-node (howm-map--format-overflow
-                                   children-overflow tw))
-                   (ow (plist-get overflow-node :w))
-                   (ox (max 0 (- cx (/ ow 2)))))
-              (howm-map--draw-node ox y-overflow overflow-node))))))
-
-    ;; trim trailing whitespace from each line
-    (goto-char (point-min))
-    (while (not (eobp))
-      (end-of-line)
-      (delete-horizontal-space)
-      (forward-line 1))
-    ;; remove trailing blank lines
-    (goto-char (point-max))
-    (skip-chars-backward " \t\n")
-    (delete-region (1+ (point)) (point-max))))
+                   do (howm-map--draw-node (car pos) y-child-top node)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; major mode
