@@ -117,10 +117,11 @@ all literal text is `regexp-quote'd."
     (push (regexp-quote (substring fmt pos)) parts)
     (apply #'concat (nreverse parts))))
 
-(defun howm-map--context-line-regexp (abbrev-path)
+(defun howm-map--context-line-regexp (abbrev-path &optional no-quote)
   "Return a regexp matching a context line that references ABBREV-PATH.
-Consults `howm-map-context-line-format' to determine the
-pattern.  ABBREV-PATH is the `abbreviate-file-name' of the target."
+Consults `howm-map-context-line-format' to determine the pattern.
+ABBREV-PATH is the `abbreviate-file-name' of the target.  If NO-QUOTE is
+non-nil, then ABBREV-PATH is not quoted."
   (let ((fmt howm-map-context-line-format))
     (cond
      ((eq fmt 'auto)
@@ -129,7 +130,7 @@ pattern.  ABBREV-PATH is the `abbreviate-file-name' of the target."
               " "
               (regexp-quote howm-ref-header)
               " "
-              (regexp-quote abbrev-path)
+              (if no-quote abbrev-path (regexp-quote abbrev-path))
               "$"))
      ((stringp fmt)
       (format fmt
@@ -163,22 +164,18 @@ Return \"?\" if FILE is nil, missing, or has a blank title."
             "?")))))
 
 (defun howm-map-parent (file)
-  "Find the parent file of FILE by parsing context links.
-The context link may appear anywhere on a line (e.g. after a date stamp).
-Return the expanded file path of the parent, or nil."
+  "Find the parent file of FILE by parsing the context backlink.
+Return the expanded file path of the parent, or nil if the current note
+does not have a context backlink."
   (when (and file (file-exists-p file))
     (with-temp-buffer
       (insert-file-contents file)
       (goto-char (point-min))
-      (let ((re (rx (literal howm-ref-header)
-                    (+ space)
-                    (group (+ (not (in " \t\n"))))))
-            expanded)
-        (when (and (re-search-forward re nil t)
-                   (file-exists-p
-                    (setq expanded (expand-file-name
-                                    (match-string-no-properties 1)))))
-          expanded)))))
+      (when-let* ((re (howm-map--context-line-regexp "\(.*\)"))
+                  ((re-search-forward re nil t))
+                  (parent (expand-file-name (match-string-no-properties 1)))
+                  ((file-exists-p parent)))
+        parent))))
 
 (defun howm-map-ancestors (file)
   "Return list of ancestor files for FILE, from root to immediate parent.
