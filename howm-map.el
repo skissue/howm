@@ -508,7 +508,7 @@ CH may be a character or a symbol resolved via `howm-map--char'."
 
           ;; horizontal rail
           (howm-map--hline (min bus-left cx) (max bus-right cx)
-                                   y-rail 'hline)
+                           y-rail 'hline)
 
           ;; junction at center where pipe meets rail
           (howm-map--put-char cx y-rail 'top-junc)
@@ -544,6 +544,26 @@ CH may be a character or a symbol resolved via `howm-map--char'."
     (delete-region (1+ (point)) (point-max))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; major mode
+
+(defvar-local howm-map--source-file nil
+  "The file whose context map is displayed in this buffer.")
+
+(defvar howm-map-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "g" #'howm-map-refresh)
+    map)
+  "Keymap for `howm-map-mode'.")
+
+(define-derived-mode howm-map-mode special-mode "howm-map"
+  "Major mode for the howm context-map buffer.
+Disables visual-line-mode and line truncation."
+  :group 'howm-map
+  (visual-line-mode -1)
+  (setq-local truncate-lines t
+              word-wrap nil))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; entry point
 
 (defun howm-map ()
@@ -556,9 +576,20 @@ CH may be a character or a symbol resolved via `howm-map--char'."
       (display-buffer buf)
       (with-current-buffer buf
         (let ((inhibit-read-only t))
+          (howm-map-mode)
+          (setq howm-map--source-file file)
           (howm-map-render file)
           (goto-char (point-min)))
-        (setq buffer-read-only t)
         (set-buffer-modified-p nil)))))
+
+(defun howm-map-refresh ()
+  "Redraw the context map with updated data."
+  (interactive)
+  (unless howm-map--source-file
+    (error "No source file recorded; open the map with `howm-map' first"))
+  (let ((inhibit-read-only t))
+    (howm-map-render howm-map--source-file)
+    (goto-char (point-min)))
+  (set-buffer-modified-p nil))
 
 ;;; howm-map.el ends here
