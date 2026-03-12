@@ -41,6 +41,11 @@ If a title is shorter, the box shrinks to fit; if longer, truncate."
   :type 'integer
   :group 'howm-map)
 
+(defface howm-map-current-node-face
+  '((t (:weight bold)))
+  "*Face for the current note's box in the context map."
+  :group 'howm-map)
+
 (defcustom howm-map-unicode nil
   "When non-nil, use Unicode box-drawing characters for the context map.
 Uses characters like │ ─ ┬ ┼ ▼ ◀─▶ instead of | - + V <->."
@@ -248,12 +253,13 @@ Box width shrinks to fit TITLE, capped at `howm-map-title-width'."
          (mid (concat (string v) marker truncated (string v))))
     (list :lines (list top mid bot) :w tw)))
 
-(defun howm-map--draw-node (x y node)
+(defun howm-map--draw-node (x y node &optional face)
   "Draw NODE (a plist from `--format-node') at position (X, Y).
-Draws 3 lines at y, y+1, y+2."
+Draws 3 lines at y, y+1, y+2.
+When FACE is non-nil, apply it to the drawn text."
   (cl-loop for line in (plist-get node :lines)
            for row from y
-           do (howm-map--draw-text x row line)))
+           do (howm-map--draw-text x row line face)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; character sets (ASCII vs Unicode)
@@ -301,33 +307,36 @@ box-drawing character; otherwise return the ASCII equivalent."
   (forward-line y)
   (move-to-column x t))
 
-(defun howm-map--put-char (x y ch)
+(defun howm-map--put-char (x y ch &optional face)
   "Place character CH at display column X, line Y.
 CH may be a character or a symbol resolved via `howm-map--char'.
-Handles multi-column characters correctly."
+Handles multi-column characters correctly.
+When FACE is non-nil, the inserted character is propertized."
   (when (symbolp ch)
     (setq ch (howm-map--char ch)))
   (howm-map--goto-xy x y)
   (let* ((new-w (max 1 (char-width ch)))
-         (deleted 0))
+         (deleted 0)
+         (s (string ch)))
     ;; delete enough existing columns to make room for new-w columns
     (while (and (< (point) (line-end-position))
                 (< deleted new-w))
       (cl-incf deleted (max 1 (char-width (char-after))))
       (delete-char 1))
-    (insert-char ch 1)
+    (insert (if face (propertize s 'face face) s))
     ;; if we deleted more columns than needed, pad with spaces
     (when (> deleted new-w)
       (insert-char ?\s (- deleted new-w)))))
 
-(defun howm-map--draw-text (x y str)
+(defun howm-map--draw-text (x y str &optional face)
   "Draw STR starting at display column X, line Y.
 Overwrites existing content character by character,
-accounting for multi-column characters."
+accounting for multi-column characters.
+When FACE is non-nil, it is applied to each inserted character."
   (let ((col x))
     (cl-loop for i from 0 below (length str)
              for ch = (aref str i)
-             do (howm-map--put-char col y ch)
+             do (howm-map--put-char col y ch face)
                 (cl-incf col (max 1 (char-width ch))))))
 
 (defun howm-map--hline (x1 x2 y ch)
@@ -402,7 +411,7 @@ CH may be a character or a symbol resolved via `howm-map--char'."
           (howm-map--draw-text (+ prev-x prev-w) (+ y nm) arrow)))
 
       ;; draw current node box
-      (howm-map--draw-node cur-x y cur-node)
+      (howm-map--draw-node cur-x y cur-node 'howm-map-current-node-face)
 
       ;; draw next (right friend)
       (when next-file
